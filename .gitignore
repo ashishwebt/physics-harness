@@ -1,0 +1,48 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[xX]64/
+[xX]86/
+
+# Visual Studio / VS Code
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.db
+*.db-shm
+*.db-wal
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+.project.assets.json
+*.nuget.dgspec.json
+
+# ASP.NET / runtime
+appsettings.Development.json
+secrets.json
+*.log
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local SQLite / data
+chatapp.db
+chatapp.db-shm
+chatapp.db-wal
+
+# Test results
+TestResults/
+coverage*/
+
+# Rider
+.idea/
+node_modules/
+dist/

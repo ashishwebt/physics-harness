@@ -1,0 +1,53 @@
+@Chat.App.API_HostAddress = http://localhost:5081
+
+GET {{Chat.App.API_HostAddress}}/api/
+Accept: application/json
+
+###
+
+GET {{Chat.App.API_HostAddress}}/api/conversations
+Accept: application/json
+
+###
+
+POST {{Chat.App.API_HostAddress}}/api/chat
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "conversationId": null,
+  "message": "My name is Ashish."
+}
+###
+
+POST {{Chat.App.API_HostAddress}}/api/chat
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "conversationId": "<conversationId>",
+  "message": "What is my name?"
+}
+
+###
+
+@conversationId = <conversationId>
+
+GET {{Chat.App.API_HostAddress}}/api/chat/{{conversationId}}
+Accept: application/json
+
+###
+
+PATCH {{Chat.App.API_HostAddress}}/api/conversations/{{conversationId}}
+Content-Type: application/json
+
+{
+  "title": "My First Chat"
+}
+
+###
+
+DELETE {{Chat.App.API_HostAddress}}/api/conversations/{{conversationId}}
+Accept: application/json
+
+###
