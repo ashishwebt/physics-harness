@@ -10,3 +10,4 @@ public sealed class ChatMessageEntity
 
     public DateTimeOffset CreatedAt { get; set; }
 }
+

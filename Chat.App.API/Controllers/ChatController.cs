@@ -145,6 +145,10 @@ public class ChatController : ControllerBase
             conversationsId.ToString(),
             ct);
 
+        var memoryFiles = await _agentService.GetMemoryFilesAsync(
+            conversationsId.ToString(),
+            ct);
+
         var messages = history
             .Where(m => m.Role == ChatRole.User || m.Role == ChatRole.Assistant)
             .Select(msg => new Message(
@@ -158,7 +162,14 @@ public class ChatController : ControllerBase
             conversation.Title,
             conversation.CreatedAt,
             conversation.UpdatedAt,
-            messages);
+            messages,
+            memoryFiles
+                .Select(file => new ConversationMemoryFile(
+                    file.Path,
+                    file.Content,
+                    file.Size,
+                    file.UpdatedAt.ToUniversalTime()))
+                .ToList());
 
         _logger.LogInformation("Retrieved conversation {ConversationId}", conversationsId);
         return Ok(result);
