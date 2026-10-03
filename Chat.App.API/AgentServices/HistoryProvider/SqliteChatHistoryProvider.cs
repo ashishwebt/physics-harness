@@ -101,6 +101,6 @@ public sealed class SqliteChatHistoryProvider(
                 "Conversation ID was not initialized.");
         }
 
-        return (string)value!;
+        return value!;
     }
 }

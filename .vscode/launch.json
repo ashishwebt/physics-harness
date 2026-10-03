@@ -3,15 +3,9 @@
   "configurations": [
     {
       "name": "Chat.App.API",
-      "type": "coreclr",
+      "type": "dotnet",
       "request": "launch",
-      "program": "${workspaceFolder}/Chat.App.API/bin/Debug/net10.0/Chat.App.API.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/Chat.App.API",
-      "stopAtEntry": false,
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      "projectPath": "${workspaceFolder}/Chat.App.API/Chat.App.API.csproj"
     },
     {
       "name": "React",

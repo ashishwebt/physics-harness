@@ -4,7 +4,8 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
-
+using DeepHarness.Backend;
+using DeepHarness;
 namespace Chat.App.API.Services;
 
 public interface IAgentService
@@ -21,15 +22,18 @@ public interface IAgentService
 
 public sealed class AgentService : IAgentService
 {
-    private readonly ChatClientAgent _agent;
+    private readonly IChatClient _chatClient;
     private readonly IDbContextFactory<ChatHistoryDbContext> _dbFactory;
+    private readonly ChatHistoryProvider _chatHistoryProvider;
 
     public AgentService(
-        ChatClientAgent agent,
-        IDbContextFactory<ChatHistoryDbContext> dbFactory)
+        IChatClient chatClient,
+        IDbContextFactory<ChatHistoryDbContext> dbFactory,
+        ChatHistoryProvider chatHistoryProvider)
     {
-        _agent = agent;
+        _chatClient = chatClient;
         _dbFactory = dbFactory;
+        _chatHistoryProvider = chatHistoryProvider;
     }
 
     public async IAsyncEnumerable<AgentResponseUpdate> StreamAsync(
@@ -37,13 +41,20 @@ public sealed class AgentService : IAgentService
         [EnumeratorCancellation]
      CancellationToken ct = default)
     {
-        AgentSession session = await _agent.CreateSessionAsync(ct);
-        foreach (var key in _agent.ChatHistoryProvider?.StateKeys ?? [])
-        {
-            session.StateBag.SetValue(key, conversationId);
-        }
 
-        await foreach (var update in _agent.RunStreamingAsync(message, session))
+        var store = new InMemoryFileStore();
+        var backend = new CompositeBackend(
+            defaultBackend: new FilesystemBackend(Path.GetFullPath("./Physics", AppContext.BaseDirectory)),
+            routes: new Dictionary<string, IBackend>
+            {
+                ["/memories/"] = new StoreBackend(store, namespaceKey: "memories")
+            });
+
+        var agent = DeepAgentFactory.Create(_chatClient, backend, _chatHistoryProvider);
+
+        AgentSession session = await agent.CreateSessionAsync(ct);
+        session.StateBag.SetValue("SqliteChatHistoryProvider.ConversationId", conversationId);
+        await foreach (var update in agent.RunStreamingAsync(message, session, cancellationToken: ct))
         {
             if (!string.IsNullOrEmpty(update.Text))
             {

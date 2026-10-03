@@ -55,16 +55,7 @@ public static class AgentServiceCollectionExtensions
         {
             var chatHistoryProvider = provider.GetRequiredService<SqliteChatHistoryProvider>();
             var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
-            ChatClientAgentOptions options = new()
-            {
-                ChatHistoryProvider = chatHistoryProvider,
-                Name = name,
-                ChatOptions = new()
-                {
-                    MaxOutputTokens = 10_000,
-                    Instructions = systemPrompt,
-                }
-            };
+
             var openRouterClient = new ChatClient(
                 model: model,
                 credential: new ApiKeyCredential(apiKey),
@@ -73,12 +64,7 @@ public static class AgentServiceCollectionExtensions
                     Endpoint = new Uri("https://openrouter.ai/api/v1")
                 });
 
-            ChatClientAgent agent = new(
-                options: options,
-                chatClient: openRouterClient.AsIChatClient()
-                );
-
-            return new AgentService(agent, dbFactory);
+            return new AgentService(openRouterClient.AsIChatClient(), dbFactory, chatHistoryProvider);
         });
 
         var provider = services.BuildServiceProvider();
