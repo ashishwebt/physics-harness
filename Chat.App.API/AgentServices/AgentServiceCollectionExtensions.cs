@@ -2,6 +2,7 @@
 using System.ClientModel;
 using Chat.App.API.AgentServices.HistoryProvider;
 using Chat.App.API.Services;
+using DeepHarness;
 using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -16,9 +17,9 @@ public static class AgentServiceCollectionExtensions
         this IServiceCollection services,
         string apiKey,
         string model,
-        string name,
-        string systemPrompt,
-        string connectionStringMessages)
+        string connectionStringMessages,
+        string name = DeepAgentFactory.DefaultAgentName,
+        string? systemPrompt = null)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -32,12 +33,7 @@ public static class AgentServiceCollectionExtensions
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Agent name is required.", nameof(name));
-        }
-
-        if (string.IsNullOrWhiteSpace(systemPrompt))
-        {
-            throw new ArgumentException("System prompt is required.", nameof(systemPrompt));
+            name = DeepAgentFactory.DefaultAgentName;
         }
 
         if (string.IsNullOrWhiteSpace(connectionStringMessages))
@@ -64,7 +60,12 @@ public static class AgentServiceCollectionExtensions
                     Endpoint = new Uri("https://openrouter.ai/api/v1")
                 });
 
-            return new AgentService(openRouterClient.AsIChatClient(), dbFactory, chatHistoryProvider);
+            return new AgentService(
+                openRouterClient.AsIChatClient(),
+                dbFactory,
+                chatHistoryProvider,
+                name,
+                systemPrompt);
         });
 
         var provider = services.BuildServiceProvider();

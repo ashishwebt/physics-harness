@@ -27,9 +27,9 @@ public class Program
         builder.Services.AddAgentServices(
             agentApiKey,
             agentModel,
+            connectionStringMessages,
             agentName,
-            agentSystemPrompt,
-            connectionStringMessages);
+            agentSystemPrompt);
 
         builder.Services.AddCors(options =>
         {

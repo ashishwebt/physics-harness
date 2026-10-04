@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using Chat.App.API.AgentServices.HistoryProvider;
 using Chat.App.API.Models;
 using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
@@ -34,15 +33,21 @@ public sealed class AgentService : IAgentService
     private readonly IChatClient _chatClient;
     private readonly IDbContextFactory<ChatHistoryDbContext> _dbFactory;
     private readonly ChatHistoryProvider _chatHistoryProvider;
+    private readonly string _agentName;
+    private readonly string? _systemPrompt;
 
     public AgentService(
         IChatClient chatClient,
         IDbContextFactory<ChatHistoryDbContext> dbFactory,
-        ChatHistoryProvider chatHistoryProvider)
+        ChatHistoryProvider chatHistoryProvider,
+        string agentName = DeepAgentFactory.DefaultAgentName,
+        string? systemPrompt = null)
     {
         _chatClient = chatClient;
         _dbFactory = dbFactory;
         _chatHistoryProvider = chatHistoryProvider;
+        _agentName = string.IsNullOrWhiteSpace(agentName) ? DeepAgentFactory.DefaultAgentName : agentName;
+        _systemPrompt = systemPrompt;
     }
 
     public async IAsyncEnumerable<AgentResponseUpdate> StreamAsync(
@@ -58,7 +63,12 @@ public sealed class AgentService : IAgentService
                 ["/memories/"] = new StoreBackend(store, namespaceKey: MemoryNamespaceKey)
             });
 
-        var agent = DeepAgentFactory.Create(_chatClient, backend, _chatHistoryProvider);
+        var agent = DeepAgentFactory.Create(
+            _chatClient,
+            backend,
+            _chatHistoryProvider,
+            _agentName,
+            _systemPrompt);
 
         AgentSession session = await agent.CreateSessionAsync(ct);
         foreach (var providerKey in _chatHistoryProvider.StateKeys)
