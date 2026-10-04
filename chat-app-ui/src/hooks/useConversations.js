@@ -10,6 +10,7 @@ export function useConversations() {
 
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [files, setFiles] = useState([]);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -38,7 +39,10 @@ export function useConversations() {
       const seq = ++requestSeq.current;
       try {
         const detail = await api.getConversation(id);
-        if (seq === requestSeq.current) setMessages(detail.messages || []);
+        if (seq === requestSeq.current) {
+          setMessages(detail.messages || []);
+          setFiles(detail.files || []);
+        }
       } catch (err) {
         if (seq === requestSeq.current) toast.error(err.message);
       } finally {
@@ -51,6 +55,7 @@ export function useConversations() {
   const startNewConversation = useCallback(() => {
     setActiveId(null);
     setMessages([]);
+    setFiles([]);
   }, []);
 
   const sendMessage = useCallback(
@@ -103,6 +108,7 @@ export function useConversations() {
         const isNewConversation = !activeId;
 
         setMessages(result.messages || []);
+        setFiles(result.files || []);
         setActiveId(nextId);
 
         if (result.title || result.createdAt || result.updatedAt) {
@@ -161,6 +167,7 @@ export function useConversations() {
         if (activeId === id) {
           setActiveId(null);
           setMessages([]);
+          setFiles([]);
         }
         toast.success('Conversation deleted.');
         return true;
@@ -177,6 +184,7 @@ export function useConversations() {
     conversationsLoading,
     activeId,
     messages,
+    files,
     conversationLoading,
     sending,
     openConversation,

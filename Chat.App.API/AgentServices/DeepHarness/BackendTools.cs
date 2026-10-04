@@ -10,7 +10,7 @@ internal sealed class BackendTools(IBackend backend, IChatClient chatClient)
     private readonly List<string> _todos = [];
 
     [Description("List files and directories at an absolute virtual path. Use `/` for the workspace root.")]
-    public string List([Description("Absolute virtual directory path, for example `/` or `/memories/`.")] string path = "/") =>
+    public string List([Description("Absolute virtual directory path, for example `/` or `/artifacts/`.")] string path = "/") =>
         Safe(() => string.Join('\n', backend.List(path).Select(entry => $"{entry.Path} ({entry.Size} bytes)")));
 
     [Description("Read a UTF-8 text file. Use offset and limit to page through large files.")]

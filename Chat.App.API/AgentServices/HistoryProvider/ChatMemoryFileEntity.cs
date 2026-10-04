@@ -4,7 +4,7 @@ public sealed class ChatMemoryFileEntity
 
     public string ConversationId { get; set; } = null!;
 
-    public string NamespaceKey { get; set; } = "memories";
+    public string NamespaceKey { get; set; } = "artifacts";
 
     public string Path { get; set; } = null!;
 

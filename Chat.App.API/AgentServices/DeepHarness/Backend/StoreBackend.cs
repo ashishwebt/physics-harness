@@ -46,7 +46,7 @@ public sealed class InMemoryFileStore : IFileStore
 /// Stores virtual files in an <see cref="IFileStore"/> namespace instead of the local filesystem.
 /// Paths are keys and support nested directories, edits, search, and batch transfers.
 /// </summary>
-public sealed class StoreBackend(IFileStore store, string namespaceKey = "memories") : IBackend
+public sealed class StoreBackend(IFileStore store, string namespaceKey = "artifacts") : IBackend
 {
     public IFileStore Store { get; } = store;
     public string Namespace { get; } = namespaceKey;

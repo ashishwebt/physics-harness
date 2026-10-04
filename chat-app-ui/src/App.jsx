@@ -15,6 +15,7 @@ function Shell() {
     conversationsLoading,
     activeId,
     messages,
+    files,
     conversationLoading,
     sending,
     openConversation,
@@ -72,6 +73,7 @@ function Shell() {
         />
         <ChatWindow
           messages={messages}
+          files={files}
           loading={conversationLoading}
           sending={sending}
           onSend={sendMessage}

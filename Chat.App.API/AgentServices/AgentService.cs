@@ -28,7 +28,7 @@ public interface IAgentService
 
 public sealed class AgentService : IAgentService
 {
-    private const string MemoryNamespaceKey = "memories";
+    private const string MemoryNamespaceKey = "artifacts";
 
     private readonly IChatClient _chatClient;
     private readonly IDbContextFactory<ChatHistoryDbContext> _dbFactory;
@@ -60,7 +60,7 @@ public sealed class AgentService : IAgentService
             defaultBackend: new FilesystemBackend(Path.GetFullPath("./Physics", AppContext.BaseDirectory)),
             routes: new Dictionary<string, IBackend>
             {
-                ["/memories/"] = new StoreBackend(store, namespaceKey: MemoryNamespaceKey)
+                ["/artifacts/"] = new StoreBackend(store, namespaceKey: MemoryNamespaceKey)
             });
 
         var agent = DeepAgentFactory.Create(
