@@ -18,4 +18,11 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
   </ItemGroup>
+  
+  <!-- Copy Physics folder files to output so runtime can read index and source files -->
+  <ItemGroup>
+    <Content Include="Physics\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

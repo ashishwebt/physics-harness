@@ -1,0 +1,39 @@
+Physics folder index — brief descriptions
+
+Files in Chat.App.API/Physics/
+
+jesc101.md — CHAPTER 1: Chemical Reactions and Equations — chemical changes, writing and balancing chemical equations, types of reactions and examples.
+
+jesc102.md — CHAPTER 2: Acids, Bases and Salts — properties and reactions of acids/bases, indicators, pH scale, salts, and everyday uses.
+
+jesc103.md — CHAPTER 3: Metals and Non-metals — physical and chemical properties, reactivity series, extraction, alloys, corrosion and protection.
+
+jesc104.md — CHAPTER 4: Carbon and its Compounds — bonding in carbon, hydrocarbons, functional groups, homologous series, and simple organic reactions.
+
+jesc105.md — CHAPTER 5: Life Processes — nutrition, respiration, circulation, excretion, and plant/animal transport systems.
+
+jesc106.md — CHAPTER 6: Control and Coordination — nervous and hormonal coordination in animals, plant responses (tropisms), reflexes and the brain.
+
+jesc107.md — CHAPTER 7: How do Organisms Reproduce? — asexual and sexual reproduction, human reproductive system, and reproductive health topics.
+
+jesc108.md — CHAPTER 8: Heredity — Mendel's experiments, inheritance patterns, dominance/recessiveness, and sex determination.
+
+jesc109.md — CHAPTER 9: Light — Reflection and Refraction — mirrors, lenses, image formation, mirror/lens formulae and optical instruments.
+
+jesc110.md — CHAPTER 10: The Human Eye and the Colourful World — eye structure, defects and correction, dispersion, rainbows and atmospheric optics.
+
+jesc111.md — CHAPTER 11: Electricity — current, circuits, Ohm's law, resistivity, DC circuits, power and heating effects.
+
+jesc112.md — CHAPTER 12: Magnetic Effects of Electric Current — magnetic fields, electromagnets, forces on conductors, motors and domestic wiring notes.
+
+jesc113.md — CHAPTER 13: Our Environment — ecosystems, food chains and webs, energy flow, pollution, ozone depletion and waste management.
+
+jesc1an.md — ANSWERS and worked solutions for selected exercises in the Physics chapters (exercise answers and hints).
+
+jesc1ps.md — SUPPLEMENTARY NOTES and reference material (preface, notes, and additional guidance for teachers and students).
+
+Notes:
+- Use this index.txt to find the chapter file names and a short summary.  When answering physics questions, consult the listed files in Chat.App.API/Physics/ for source text and examples.
+- Files are Markdown chapters; open the indicated file (for example, Chat.App.API/Physics/jesc109.md) to read the full chapter.
+
+Last updated: REPOSITORY_INDEX (generated)
