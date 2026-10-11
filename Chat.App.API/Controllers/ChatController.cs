@@ -151,6 +151,7 @@ public class ChatController : ControllerBase
 
         var messages = history
             .Where(m => m.Role == ChatRole.User || m.Role == ChatRole.Assistant)
+            .Where(m => !string.IsNullOrWhiteSpace(m.Text))
             .Select(msg => new Message(
                 msg.Role.ToString(),
                 msg.Text ?? string.Empty,

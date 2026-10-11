@@ -69,10 +69,23 @@ public static class AgentServiceCollectionExtensions
         });
 
         var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ChatHistoryDbContext>();
-        db.Database.EnsureCreated();
+        var environment = provider.GetRequiredService<IHostEnvironment>();
 
+        if (environment.IsDevelopment())
+        {
+            using var scope = provider.CreateScope();
+            var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+            using var dbContext = dbFactory.CreateDbContext();
+
+            if (dbContext.Database.GetMigrations().Any())
+            {
+                dbContext.Database.Migrate();
+            }
+            else
+            {
+                dbContext.Database.EnsureCreated();
+            }
+        }
 
         return services;
     }

@@ -15,11 +15,24 @@ public static class DatabaseServiceCollectionExtensions
             options.UseSqlite(connectionString));
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
-        
+
         var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.Database.EnsureCreated();
+        var environment = provider.GetRequiredService<IHostEnvironment>();
+
+        if (environment.IsDevelopment())
+        {
+            using var scope = provider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            if (dbContext.Database.GetMigrations().Any())
+            {
+                dbContext.Database.Migrate();
+            }
+            else
+            {
+                dbContext.Database.EnsureCreated();
+            }
+        }
 
         return services;
     }
