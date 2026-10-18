@@ -1,43 +1,61 @@
-# Chat.App
+# Physics Harness
 
 [日本語](./README.ja.md)
 
-A full-stack AI chat application built with a .NET 10 backend and a React + Vite frontend. The project lets users create and manage conversations, send messages to an AI agent, and view streaming responses with a polished chat interface.
+Physics Harness is a full-stack AI study app built around a local physics textbook and a research-focused assistant. The backend serves conversation APIs and the frontend provides a chat interface for asking questions grounded in the project’s physics content.
 
-## Project overview
+## What this project does
 
-- Backend: `Chat.App.API`
-  - ASP.NET Core Web API
-  - SQLite-backed conversation and history storage
-  - AI agent integration for streaming chat responses
-  - health check and conversation APIs
+This repo combines:
 
-- Frontend: `chat-app-ui`
-  - React + Vite
-  - Tailwind CSS UI
-  - conversation sidebar and chat window
-  - light/dark theme support
-  - markdown rendering and toasts
+- a .NET API in `Chat.App.API`
+- a React + Vite frontend in `chat-app-ui`
+- a book ingestion tool in `book-injector`
+- local physics content under `Chat.App.API/Physics`
 
-## Features
+The app is designed to help users explore a structured physics curriculum, ask questions about specific sections, and use an AI assistant that can reference the local textbook material while answering.
+
+## Core features
 
 - Create and manage chat conversations
-- Rename and delete conversations
-- Send messages to the AI agent
-- Stream responses in real time
-- Retrieve message history for each conversation
-- Persistent storage with SQLite
-- Responsive UI for desktop and mobile
+- Ask questions grounded in the local physics book
+- Read and cite textbook sections from the included markdown content
+- Stream AI responses in the UI
+- Keep conversation history in SQLite
+- Work with artifact files for collaborative drafting or notes
+- Regenerate the textbook corpus from OpenStax source material
+
+## Included content
+
+The project includes a converted OpenStax physics text, organized by chapter and section under `Chat.App.API/Physics`.
+
+- `Chat.App.API/Physics/index.md` is the table of contents
+- Each chapter folder contains section markdown files
+- `Chat.App.API/ATTRIBUTION.md` documents the source and license
+
+This content is sourced from OpenStax and remains under CC BY 4.0; it is not included under the surrounding project’s MIT license.
 
 ## Prerequisites
 
 - .NET SDK 10
 - Node.js 20+ LTS
-- An AI provider configuration for the backend (for example, a configured API key and model in the app settings)
+- An AI provider configuration for the backend, such as a valid API key and model in the application settings
 
 ## Quick start
 
-### 1) Start the backend
+### 1) Configure the backend
+
+Set your AI settings in `Chat.App.API/appsettings.Development.json` or `Chat.App.API/appsettings.json`:
+
+```json
+"Agent": {
+  "ApiKey": "your-key",
+  "Model": "your-model",
+  "Name": "Physics-agent"
+}
+```
+
+### 2) Start the backend
 
 ```bash
 dotnet restore
@@ -45,9 +63,9 @@ cd Chat.App.API
 dotnet run
 ```
 
-The API runs locally with the default ASP.NET Core development configuration. The application reads configuration from `Chat.App.API/appsettings.json` and `appsettings.Development.json`.
+The API runs with ASP.NET Core and serves local endpoints on the default development ports.
 
-### 2) Start the frontend
+### 3) Start the frontend
 
 ```bash
 cd chat-app-ui
@@ -55,33 +73,64 @@ npm install
 npm run dev
 ```
 
-The frontend dev server will start at http://localhost:5173 and proxy API requests to the backend at http://localhost:5081.
+The frontend is available at:
 
-### 3) Open the app
+- http://localhost:5173
 
-Visit:
+The backend is typically available at:
 
-- Frontend: http://localhost:5173
-- API docs (development): http://localhost:5081/swagger
-- Health check: http://localhost:5081/api/health
+- http://localhost:5081/swagger
+- http://localhost:5081/api/health
 
-## VS Code debugging
+### 4) Open the app
 
-The workspace already includes a root-level VS Code debug setup in `.vscode/launch.json`.
+Visit the frontend in the browser and start a new conversation.
 
-Use the following debug options from the VS Code Run and Debug panel:
+## Regenerating the physics book
 
-- `Chat.App.API` – launches the ASP.NET Core backend in debug mode
-- `React` – starts the Vite frontend in the integrated terminal
-- `fullstack` – launches both services together in one compound configuration
+If you want to refresh the markdown content from the upstream OpenStax source data:
 
-Set breakpoints in files like `Chat.App.API/Program.cs`, `Chat.App.API/Controllers/*.cs`, or `chat-app-ui/src/**/*.jsx` and then choose the profile you want.
+```bash
+dotnet run --project book-injector/book-injector.csproj
+```
 
-This is the easiest way to step through the API request flow and the UI state updates during development.
+This downloads the source archive, converts relevant modules into markdown, writes chapter files under `Chat.App.API/Physics`, and creates the index and attribution files.
 
-## Configuration
+## Project structure
 
-The backend uses the app settings file at `Chat.App.API/appsettings.json`.
+```text
+physics-harness/
+├─ Chat.App.API/
+│  ├─ AgentServices/
+│  ├─ Controllers/
+│  ├─ Database/
+│  ├─ Models/
+│  ├─ Physics/
+│  ├─ appsettings.json
+│  ├─ appsettings.Development.json
+│  ├─ ATTRIBUTION.md
+│  ├─ Program.cs
+│  └─ ...
+├─ chat-app-ui/
+│  ├─ src/
+│  ├─ package.json
+│  ├─ vite.config.js
+│  └─ ...
+├─ book-injector/
+│  └─ Program.cs
+├─ Chat.App.sln
+├─ LICENSE
+├─ README.md
+├─ README.ja.md
+└─ ...
+```
+
+## Configuration notes
+
+The backend reads configuration from:
+
+- `Chat.App.API/appsettings.json`
+- `Chat.App.API/appsettings.Development.json`
 
 Key settings include:
 
@@ -93,11 +142,9 @@ Key settings include:
 - `Agent:SystemPrompt`
 - `Cors:AllowedOrigins`
 
-Update these values to match your environment and AI provider.
-
 ## API endpoints
 
-The backend exposes these main endpoints:
+The API exposes the main endpoints used by the app:
 
 - `GET /api/health`
 - `GET /api/conversations`
@@ -106,30 +153,8 @@ The backend exposes these main endpoints:
 - `POST /api/chat`
 - `GET /api/chat/{conversationId}`
 
-## Repository structure
-
-```text
-Chat.App/
-├─ Chat.App.API/              .NET API project
-│  ├─ Controllers/
-│  ├─ Data/
-│  ├─ Models/
-│  ├─ AgentServices/
-│  ├─ Program.cs
-│  ├─ appsettings.json
-│  └─ appsettings.Development.json
-├─ chat-app-ui/              React frontend
-│  ├─ src/
-│  ├─ package.json
-│  ├─ vite.config.js
-│  └─ README.md
-├─ Chat.App.sln
-├─ LICENSE
-├─ README.md
-└─ ...
-```
-
 ## Notes
 
-- The frontend is designed to use relative `/api/...` routes. In local development this is handled by Vite proxying; in production, serving the frontend and API from the same origin or behind a reverse proxy is the most reliable approach.
-- The backend uses SQLite for conversation records and chat history. Ensure the app has permission to write to the configured data directory.
+- The frontend expects `/api/...` routes and is configured to work with the backend locally through Vite.
+- The app persists conversation and message history in SQLite.
+- The physics corpus is intentionally local and source-grounded so the assistant can answer in the context of the included textbook material.
