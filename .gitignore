@@ -46,4 +46,5 @@ coverage*/
 .idea/
 node_modules/
 dist/
-Chat.App.API/Physics/*.md
+Chat.App.API/Physics/
+Chat.App.API/ATTRIBUTION.md
