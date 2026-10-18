@@ -1,43 +1,61 @@
-# Chat.App
+# Physics Harness
 
 [English](./README.md)
 
-.NET 10 バックエンドと React + Vite フロントエンドで構成されたフルスタック AI チャットアプリケーションです。会話の作成・管理、AI エージェントへのメッセージ送信、ストリーミング応答の表示ができます。
+Physics Harness は、ローカルの物理学教科書と研究型アシスタントを組み合わせたフルスタック AI 学習アプリです。バックエンドが会話 API を提供し、フロントエンドがその内容を対話的に表示します。
 
-## 概要
+## このプロジェクトの目的
 
-- バックエンド: `Chat.App.API`
-  - ASP.NET Core Web API
-  - SQLite による会話と履歴の保存
-  - AI エージェント連携によるストリーミング応答
-  - ヘルスチェックと会話 API
+このリポジトリには次の要素が含まれています。
 
-- フロントエンド: `chat-app-ui`
-  - React + Vite
-  - Tailwind CSS UI
-  - 会話サイドバーとチャットウィンドウ
-  - ライト/ダークテーマ切り替え
-  - Markdown 表示とトースト通知
+- `Chat.App.API` の .NET API
+- `chat-app-ui` の React + Vite フロントエンド
+- `book-injector` の教材取り込みツール
+- `Chat.App.API/Physics` 配下のローカル物理テキスト
+
+アプリは、構造化された物理学の学習内容を扱い、特定の章や節に関する質問に対して、ローカルの教材を参照しながら回答することを想定しています。
 
 ## 主な機能
 
-- チャット会話の作成・管理
-- 会話の名前変更と削除
-- AI エージェントへのメッセージ送信
-- リアルタイムでの応答ストリーミング
-- 会話ごとの履歴取得
-- SQLite による永続化
-- デスクトップとモバイルに対応した UI
+- 会話の作成と管理
+- ローカル物理教材に基づく質問応答
+- 章・節ごとに整理された教科書本文の参照
+- UI 上でのストリーミング応答
+- SQLite による会話履歴保存
+- 共同編集のためのアーティファクトファイル
+- OpenStax 由来の教材を再生成する機能
+
+## 含まれる教材
+
+プロジェクトには OpenStax の物理学テキストを Markdown に変換した内容が含まれており、`Chat.App.API/Physics` に配置されています。
+
+- `Chat.App.API/Physics/index.md` は目次
+- 各章のフォルダにセクションごとの Markdown が格納
+- `Chat.App.API/ATTRIBUTION.md` に出典とライセンス情報が記載
+
+この教材は OpenStax のコンテンツをベースにしており、CC BY 4.0 で提供されています。周辺プロジェクトの MIT ライセンスとは別物です。
 
 ## 必要条件
 
 - .NET SDK 10
 - Node.js 20 以上の LTS
-- バックエンド側の AI プロバイダー設定（API キーやモデル設定）
+- バックエンド側の AI 設定（API キーやモデル名など）
 
-## 起動方法
+## 起動手順
 
-### 1) バックエンド起動
+### 1) バックエンド設定
+
+`Chat.App.API/appsettings.Development.json` または `Chat.App.API/appsettings.json` に AI 設定を追加します。
+
+```json
+"Agent": {
+  "ApiKey": "your-key",
+  "Model": "your-model",
+  "Name": "Physics-agent"
+}
+```
+
+### 2) バックエンド起動
 
 ```bash
 dotnet restore
@@ -45,7 +63,9 @@ cd Chat.App.API
 dotnet run
 ```
 
-### 2) フロントエンド起動
+ASP.NET Core を使って API が起動します。
+
+### 3) フロントエンド起動
 
 ```bash
 cd chat-app-ui
@@ -53,19 +73,74 @@ npm install
 npm run dev
 ```
 
-### 3) アプリを開く
+以下の URL で利用できます。
 
-- フロントエンド: http://localhost:5173
-- API ドキュメント: http://localhost:5081/swagger
-- ヘルスチェック: http://localhost:5081/api/health
+- http://localhost:5173
 
-## VS Code デバッグ
+バックエンドは次の URL で確認できます。
 
-ルートの `.vscode/launch.json` を使って、次の設定でデバッグできます。
+- http://localhost:5081/swagger
+- http://localhost:5081/api/health
 
-- `Chat.App.API` – ASP.NET Core バックエンドを起動
-- `React` – Vite フロントエンドを起動
-- `fullstack` – API + フロントエンドを同時起動
+### 4) アプリを開く
+
+ブラウザでフロントエンドを開いて新しい会話を開始します。
+
+## 教材の再生成
+
+OpenStax の元データから Markdown 一式を更新したい場合は次を実行します。
+
+```bash
+dotnet run --project book-injector/book-injector.csproj
+```
+
+この処理で教材のダウンロード、変換、章別ファイル生成、目次と出典ファイルの更新が行われます。
+
+## ディレクトリ構成
+
+```text
+physics-harness/
+├─ Chat.App.API/
+│  ├─ AgentServices/
+│  ├─ Controllers/
+│  ├─ Database/
+│  ├─ Models/
+│  ├─ Physics/
+│  ├─ appsettings.json
+│  ├─ appsettings.Development.json
+│  ├─ ATTRIBUTION.md
+│  ├─ Program.cs
+│  └─ ...
+├─ chat-app-ui/
+│  ├─ src/
+│  ├─ package.json
+│  ├─ vite.config.js
+│  └─ ...
+├─ book-injector/
+│  └─ Program.cs
+├─ Chat.App.sln
+├─ LICENSE
+├─ README.md
+├─ README.ja.md
+└─ ...
+```
+
+## 設定メモ
+
+バックエンドは次の設定ファイルを読み込みます。
+
+- `Chat.App.API/appsettings.json`
+- `Chat.App.API/appsettings.Development.json`
+
+主な項目:
+
+- `ConnectionStrings:Default`
+- `ConnectionStrings:ConnectionStringMessages`
+- `Agent:ApiKey`
+- `Agent:Model`
+- `Agent:Name`
+- `Agent:SystemPrompt`
+- `Cors:AllowedOrigins`
 
 ## 主要 API
 
@@ -76,6 +151,12 @@ npm run dev
 - `POST /api/chat`
 - `GET /api/chat/{conversationId}`
 
+## 補足
+
+- フロントエンドは `/api/...` を前提にしており、ローカル開発では Vite のプロキシで連携します。
+- 会話履歴とメッセージは SQLite に保存されます。
+- 物理教材はローカルに保持され、AI がその内容を参照して回答する設計になっています。
+
 ---
 
-[元の README に戻る](README.md)
+[英語版 README に戻る](README.md)
