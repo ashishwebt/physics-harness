@@ -1,8 +1,8 @@
 
 using System.ClientModel;
-using Chat.App.API.AgentServices.HistoryProvider;
 using Chat.App.API.Services;
 using DeepHarness;
+using DeepHarness.HistoryProvider;
 using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -52,16 +52,20 @@ public static class AgentServiceCollectionExtensions
             var chatHistoryProvider = provider.GetRequiredService<SqliteChatHistoryProvider>();
             var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
 
+            OpenAIClient client = new OpenAIClient(apiKey);
+            var responsesClient = client.GetChatClient(model);
             var openRouterClient = new ChatClient(
                 model: model,
+
                 credential: new ApiKeyCredential(apiKey),
                 options: new OpenAIClientOptions
                 {
-                    Endpoint = new Uri("https://openrouter.ai/api/v1")
+
+                    Endpoint = new Uri("https://api.freemodel.app/v1")
                 });
 
             return new AgentService(
-                openRouterClient.AsIChatClient(),
+                responsesClient.AsIChatClient(),
                 dbFactory,
                 chatHistoryProvider,
                 name,

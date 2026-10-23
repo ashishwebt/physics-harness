@@ -1,3 +1,5 @@
+namespace DeepHarness.HistoryProvider;
+
 public sealed class ChatMemoryFileEntity
 {
     public long Id { get; set; }

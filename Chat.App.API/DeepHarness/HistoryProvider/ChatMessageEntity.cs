@@ -1,3 +1,5 @@
+namespace DeepHarness.HistoryProvider;
+
 public sealed class ChatMessageEntity
 {
     public long Id { get; set; }

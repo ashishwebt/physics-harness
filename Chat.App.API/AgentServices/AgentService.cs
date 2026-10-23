@@ -3,11 +3,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Chat.App.API.Models;
+using DeepHarness;
+using DeepHarness.Backend;
+using DeepHarness.HistoryProvider;
 using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
-using DeepHarness.Backend;
-using DeepHarness;
+
 namespace Chat.App.API.Services;
 
 public interface IAgentService

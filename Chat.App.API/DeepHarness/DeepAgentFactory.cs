@@ -61,7 +61,6 @@ public static class DeepAgentFactory
                 ChatOptions = new ChatOptions
                 {
                     Instructions = BuildSystemPrompt(systemPrompt),
-                    MaxOutputTokens = 3000,
                     Tools = [
                         AIFunctionFactory.Create(tools.List, "ls"),
                         AIFunctionFactory.Create(tools.Read, "read_file"),

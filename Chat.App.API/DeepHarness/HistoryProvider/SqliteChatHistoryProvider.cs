@@ -3,7 +3,7 @@ using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 
-namespace Chat.App.API.AgentServices.HistoryProvider;
+namespace DeepHarness.HistoryProvider;
 
 public sealed class SqliteChatHistoryProvider(
     IDbContextFactory<ChatHistoryDbContext> dbFactory)

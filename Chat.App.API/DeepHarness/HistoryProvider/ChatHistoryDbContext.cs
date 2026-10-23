@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+namespace DeepHarness.HistoryProvider;
+
 public sealed class ChatHistoryDbContext(DbContextOptions<ChatHistoryDbContext> options)
     : DbContext(options)
 {
