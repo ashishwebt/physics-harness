@@ -112,7 +112,7 @@ public class FilesystemBackendTests
             var read = backend.Read("/docs/alpha.txt", offset: 1, limit: 1);
             Assert.Equal(3, read.TotalLines);
             Assert.Equal(2, read.StartLine);
-            Assert.Equal("world", read.Content.Trim());
+            Assert.Equal("world", read.Content?.Trim());
 
             var invalidOffset = backend.Read("/docs/alpha.txt", offset: -1);
             Assert.Equal("offset must be non-negative", invalidOffset.Error);
@@ -143,7 +143,7 @@ public class FilesystemBackendTests
 
         backend.Write("/docs/hello.txt", "one\ntwo");
         var read = backend.Read("/docs/hello.txt");
-        Assert.Equal("one\ntwo", read.Content.Replace("\r", string.Empty));
+        Assert.Equal("one\ntwo", read.Content?.Replace("\r", string.Empty));
 
         var edit = backend.Edit("/docs/hello.txt", "one", "alpha");
         Assert.Null(edit.Error);
