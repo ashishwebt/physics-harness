@@ -6,8 +6,7 @@ namespace DeepHarness;
 
 /// <summary>
 /// Creates a ready-to-run DeepAgent with built-in file tools over the supplied backend.
-/// All implementation remains in the console project for now,
-/// so this API can later move into a class library without changing the app entry point.
+/// Implementation is packaged in the DeepHarness class library.
 /// </summary>
 public static class DeepAgentFactory
 {
@@ -95,4 +94,6 @@ public static class DeepAgentFactory
             tools: [AIFunctionFactory.Create(tools.List, "ls"), AIFunctionFactory.Create(tools.Read, "read_file"), AIFunctionFactory.Create(tools.Glob, "glob"), AIFunctionFactory.Create(tools.Grep, "grep")]);
     }
 }
+
+
 

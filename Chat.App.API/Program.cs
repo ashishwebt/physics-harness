@@ -20,6 +20,7 @@ public class Program
         var agentModel = builder.Configuration["Agent:Model"] ?? string.Empty;
         var agentName = builder.Configuration["Agent:Name"] ?? string.Empty;
         var agentSystemPrompt = builder.Configuration["Agent:SystemPrompt"] ?? string.Empty;
+        var agentProvider = builder.Configuration["Agent:Provider"] ?? "google";
         var connectionStringMessages = builder.Configuration.GetConnectionString("ConnectionStringMessages")
             ?? throw new InvalidOperationException(
                 "Database connection string is required.");
@@ -29,7 +30,8 @@ public class Program
             agentModel,
             connectionStringMessages,
             agentName,
-            agentSystemPrompt);
+            agentSystemPrompt,
+            agentProvider);
 
         builder.Services.AddCors(options =>
         {

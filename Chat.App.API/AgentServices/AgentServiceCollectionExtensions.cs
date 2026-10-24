@@ -1,13 +1,8 @@
 
-using System.ClientModel;
 using Chat.App.API.Services;
 using DeepHarness;
 using DeepHarness.HistoryProvider;
-using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.AI;
-using OpenAI;
-using OpenAI.Chat;
 
 namespace Chat.App.API.AgentServices;
 
@@ -19,7 +14,8 @@ public static class AgentServiceCollectionExtensions
         string model,
         string connectionStringMessages,
         string name = DeepAgentFactory.DefaultAgentName,
-        string? systemPrompt = null)
+        string? systemPrompt = null,
+        string providerName = "openai")
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -52,20 +48,10 @@ public static class AgentServiceCollectionExtensions
             var chatHistoryProvider = provider.GetRequiredService<SqliteChatHistoryProvider>();
             var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
 
-            OpenAIClient client = new OpenAIClient(apiKey);
-            var responsesClient = client.GetChatClient(model);
-            var openRouterClient = new ChatClient(
-                model: model,
-
-                credential: new ApiKeyCredential(apiKey),
-                options: new OpenAIClientOptions
-                {
-
-                    Endpoint = new Uri("https://api.freemodel.app/v1")
-                });
+            var chatClient = ChatClientFactory.Create(providerName, apiKey, model);
 
             return new AgentService(
-                responsesClient.AsIChatClient(),
+                chatClient,
                 dbFactory,
                 chatHistoryProvider,
                 name,
