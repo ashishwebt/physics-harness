@@ -49,9 +49,10 @@ internal sealed class BackendTools(IBackend backend, IChatClient chatClient)
     [Description("Delegate one focused, read-only research task to an isolated subagent. The subagent cannot delegate further.")]
     public async Task<string> Task([Description("A focused research task for the subagent.")] string task)
     {
+        ChatMessage taskMessage = new(ChatRole.User, task);
         var subagent = DeepAgentFactory.CreateResearchAgent(backend, chatClient);
-        var response = await subagent.RunAsync(task, await subagent.CreateSessionAsync());
-        return response.ToString();
+        var response = await subagent.RunAsync([taskMessage], await subagent.CreateSessionAsync());
+        return response.Text;
     }
 
     private static string Safe(Func<string> operation)

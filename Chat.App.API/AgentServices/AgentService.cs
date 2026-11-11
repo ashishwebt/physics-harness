@@ -6,7 +6,6 @@ using Chat.App.API.Models;
 using DeepHarness;
 using DeepHarness.Backend;
 using DeepHarness.HistoryProvider;
-using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 
@@ -75,10 +74,10 @@ public sealed class AgentService : IAgentService
         AgentSession session = await agent.CreateSessionAsync(ct);
         foreach (var providerKey in _chatHistoryProvider.StateKeys)
         {
-            session.StateBag.SetValue(providerKey, conversationId);
+            session.StateBag[providerKey] = conversationId;
         }
 
-        await foreach (var update in agent.RunStreamingAsync(message, session, cancellationToken: ct))
+        await foreach (var update in agent.RunStreamingAsync([message], session, cancellationToken: ct))
         {
             if (!string.IsNullOrEmpty(update.Text))
             {

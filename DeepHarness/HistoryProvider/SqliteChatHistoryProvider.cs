@@ -1,20 +1,22 @@
 using System.Text.Json;
-using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 
 namespace DeepHarness.HistoryProvider;
 
-public sealed class SqliteChatHistoryProvider(
-    IDbContextFactory<ChatHistoryDbContext> dbFactory)
-    : ChatHistoryProvider
+/// <summary>
+/// SQLite-backed chat history provider.  Stores messages per conversation
+/// in a <see cref="ChatHistoryDbContext"/>.
+/// </summary>
+public sealed class SqliteChatHistoryProvider(IDbContextFactory<ChatHistoryDbContext> dbFactory) : ChatHistoryProvider
 {
     private const string ConversationIdKey = "SqliteChatHistoryProvider.ConversationId";
 
-    public override IReadOnlyList<string> StateKeys =>
-        [ConversationIdKey];
+    /// <inheritdoc/>
+    public override IReadOnlyList<string> StateKeys => [ConversationIdKey];
 
-    protected override async ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(
+    /// <inheritdoc/>
+    public override async ValueTask<IEnumerable<ChatMessage>> InvokingAsync(
         InvokingContext context,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +35,8 @@ public sealed class SqliteChatHistoryProvider(
         );
     }
 
-    protected override async ValueTask StoreChatHistoryAsync(
+    /// <inheritdoc/>
+    public override async ValueTask InvokedAsync(
         InvokedContext context,
         CancellationToken cancellationToken = default)
     {
@@ -72,35 +75,25 @@ public sealed class SqliteChatHistoryProvider(
     private static string GetConversationId(InvokingContext context)
     {
         if (context.Session is null)
-            throw new InvalidOperationException(
-                "A session is required for SQLite chat history.");
+            throw new InvalidOperationException("A session is required for SQLite chat history.");
 
-        if (!context.Session.StateBag.TryGetValue<string>(
-                ConversationIdKey,
-                out var value))
+        if (string.IsNullOrWhiteSpace(context.Session.ConversationId))
         {
-            value = Guid.NewGuid().ToString("N");
-
-            context.Session.StateBag.SetValue<string>(ConversationIdKey, value);
+            context.Session.ConversationId = Guid.NewGuid().ToString("N");
         }
-
-        return value!;
+        return context.Session.ConversationId;
     }
 
     private static string GetConversationId(InvokedContext context)
     {
         if (context.Session is null)
-            throw new InvalidOperationException(
-                "A session is required for SQLite chat history.");
+            throw new InvalidOperationException("A session is required for SQLite chat history.");
 
-        if (!context.Session.StateBag.TryGetValue<string>(
-                ConversationIdKey,
-                out var value))
+        if (string.IsNullOrWhiteSpace(context.Session.ConversationId))
         {
-            throw new InvalidOperationException(
-                "Conversation ID was not initialized.");
+            throw new InvalidOperationException("Conversation ID was not initialized.");
         }
+        return context.Session.ConversationId;
 
-        return value!;
     }
 }

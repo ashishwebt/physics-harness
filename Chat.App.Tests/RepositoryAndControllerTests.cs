@@ -3,7 +3,7 @@ using Chat.App.API.Database;
 using Chat.App.API.Database.Entities;
 using Chat.App.API.Models;
 using Chat.App.API.Services;
-using Microsoft.Agents.AI;
+using DeepHarness;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
@@ -94,7 +94,8 @@ public class RepositoryAndControllerTests
 
         var deleteResult = await controller.Delete(repo.ConversationId, CancellationToken.None);
         var deleteOk = Assert.IsType<OkObjectResult>(deleteResult);
-        Assert.True((bool)((dynamic)deleteOk.Value!).deleted);
+        var deletedValue = deleteOk.Value?.GetType().GetProperty("deleted")?.GetValue(deleteOk.Value);
+        Assert.True((bool)deletedValue!);
 
         var missingDelete = await controller.Delete(Guid.NewGuid(), CancellationToken.None);
         Assert.IsType<NotFoundObjectResult>(missingDelete);

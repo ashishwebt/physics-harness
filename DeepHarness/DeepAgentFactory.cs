@@ -1,5 +1,5 @@
+using DeepHarness.Agents;
 using DeepHarness.Backend;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace DeepHarness;
@@ -52,7 +52,10 @@ public static class DeepAgentFactory
         ArgumentNullException.ThrowIfNull(backend);
 
         var tools = new BackendTools(backend, chatClient);
-        var agent = chatClient.AsAIAgent(
+
+
+        return new ChatClientAgent(
+            chatClient,
             new ChatClientAgentOptions
             {
                 ChatHistoryProvider = chatHistoryProvider,
@@ -73,8 +76,6 @@ public static class DeepAgentFactory
                     ]
                 },
             });
-
-        return agent;
     }
 
     internal static ChatClientAgent CreateResearchAgent(
@@ -87,11 +88,18 @@ public static class DeepAgentFactory
         var instructions = BuildSystemPrompt(
             systemPrompt ?? "You are a read-only research subagent. Complete only the delegated task. Use discovery, reading, and search tools; do not modify files or delegate further.");
 
+
         return new ChatClientAgent(
             chatClient,
+            chatHistoryProvider: new InMemoryChatHistoryProvider(),
             name: agentName,
             instructions: instructions,
-            tools: [AIFunctionFactory.Create(tools.List, "ls"), AIFunctionFactory.Create(tools.Read, "read_file"), AIFunctionFactory.Create(tools.Glob, "glob"), AIFunctionFactory.Create(tools.Grep, "grep")]);
+            tools: [
+                AIFunctionFactory.Create(tools.List, "ls"),
+                AIFunctionFactory.Create(tools.Read, "read_file"),
+                AIFunctionFactory.Create(tools.Glob, "glob"),
+                AIFunctionFactory.Create(tools.Grep, "grep")
+            ]);
     }
 }
 
