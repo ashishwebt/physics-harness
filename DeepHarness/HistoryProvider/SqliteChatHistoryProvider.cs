@@ -79,7 +79,7 @@ public sealed class SqliteChatHistoryProvider(IDbContextFactory<ChatHistoryDbCon
 
         if (string.IsNullOrWhiteSpace(context.Session.ConversationId))
         {
-            context.Session.ConversationId = Guid.NewGuid().ToString("N");
+            context.Session.ConversationId = Guid.NewGuid().ToString();
         }
         return context.Session.ConversationId;
     }

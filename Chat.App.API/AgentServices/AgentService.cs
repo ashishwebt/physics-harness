@@ -71,7 +71,7 @@ public sealed class AgentService : IAgentService
             _agentName,
             _systemPrompt);
 
-        AgentSession session = await agent.CreateSessionAsync(ct);
+        AgentSession session = await agent.CreateSessionAsync(conversationId, ct);
         foreach (var providerKey in _chatHistoryProvider.StateKeys)
         {
             session.StateBag[providerKey] = conversationId;

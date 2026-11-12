@@ -51,7 +51,8 @@ internal sealed class BackendTools(IBackend backend, IChatClient chatClient)
     {
         ChatMessage taskMessage = new(ChatRole.User, task);
         var subagent = DeepAgentFactory.CreateResearchAgent(backend, chatClient);
-        var response = await subagent.RunAsync([taskMessage], await subagent.CreateSessionAsync());
+        Guid conversationId = Guid.NewGuid();
+        var response = await subagent.RunAsync([taskMessage], await subagent.CreateSessionAsync(conversationId.ToString()));
         return response.Text;
     }
 
