@@ -1,8 +1,8 @@
 using Google.GenAI;
 using Microsoft.Extensions.AI;
-using OpenAI;
+//using OpenAI; need to install sdk for open
 
-namespace DeepHarness;
+namespace Chat.App.API.AgentServices;
 
 /// <summary>Creates provider-specific chat clients for DeepHarness agents.</summary>
 public static class ChatClientFactory
@@ -15,7 +15,7 @@ public static class ChatClientFactory
 
         return provider.Trim().ToLowerInvariant() switch
         {
-            "openai" => new OpenAIClient(apiKey).GetChatClient(model).AsIChatClient(),
+           // "openai" => new OpenAIClient(apiKey).GetChatClient(model).AsIChatClient(),
             "google" or "gemini" => new Client(apiKey: apiKey).AsIChatClient(model),
             _ => throw new ArgumentException($"Unsupported agent provider '{provider}'. Supported providers are 'openai' and 'google'.", nameof(provider))
         };

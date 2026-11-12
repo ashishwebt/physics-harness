@@ -5,12 +5,12 @@ using Microsoft.Extensions.AI;
 namespace DeepHarness.HistoryProvider;
 
 /// <summary>
-/// SQLite-backed chat history provider.  Stores messages per conversation
+/// Database-backed chat history provider.  Stores messages per conversation
 /// in a <see cref="ChatHistoryDbContext"/>.
 /// </summary>
-public sealed class SqliteChatHistoryProvider(IDbContextFactory<ChatHistoryDbContext> dbFactory) : ChatHistoryProvider
+public sealed class DbChatHistoryProvider(IDbContextFactory<ChatHistoryDbContext> dbFactory) : ChatHistoryProvider
 {
-    private const string ConversationIdKey = "SqliteChatHistoryProvider.ConversationId";
+    private const string ConversationIdKey = "DbChatHistoryProvider.ConversationId";
 
     /// <inheritdoc/>
     public override IReadOnlyList<string> StateKeys => [ConversationIdKey];
@@ -75,7 +75,7 @@ public sealed class SqliteChatHistoryProvider(IDbContextFactory<ChatHistoryDbCon
     private static string GetConversationId(InvokingContext context)
     {
         if (context.Session is null)
-            throw new InvalidOperationException("A session is required for SQLite chat history.");
+            throw new InvalidOperationException("A session is required for database chat history.");
 
         if (string.IsNullOrWhiteSpace(context.Session.ConversationId))
         {
@@ -87,7 +87,7 @@ public sealed class SqliteChatHistoryProvider(IDbContextFactory<ChatHistoryDbCon
     private static string GetConversationId(InvokedContext context)
     {
         if (context.Session is null)
-            throw new InvalidOperationException("A session is required for SQLite chat history.");
+            throw new InvalidOperationException("A session is required for database chat history.");
 
         if (string.IsNullOrWhiteSpace(context.Session.ConversationId))
         {

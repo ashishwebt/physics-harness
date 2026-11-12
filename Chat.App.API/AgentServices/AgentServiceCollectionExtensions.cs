@@ -1,4 +1,5 @@
 
+using Chat.App.API.AgentServices;
 using Chat.App.API.Services;
 using DeepHarness;
 using DeepHarness.HistoryProvider;
@@ -15,7 +16,7 @@ public static class AgentServiceCollectionExtensions
         string connectionStringMessages,
         string name = DeepAgentFactory.DefaultAgentName,
         string? systemPrompt = null,
-        string providerName = "openai")
+        string providerName = "google")
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -42,10 +43,10 @@ public static class AgentServiceCollectionExtensions
             options.UseSqlite(connectionStringMessages);
         });
 
-        services.AddSingleton<SqliteChatHistoryProvider>();
+        services.AddSingleton<DbChatHistoryProvider>();
         services.AddSingleton<IAgentService>(provider =>
         {
-            var chatHistoryProvider = provider.GetRequiredService<SqliteChatHistoryProvider>();
+            var chatHistoryProvider = provider.GetRequiredService<DbChatHistoryProvider>();
             var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
 
             var chatClient = ChatClientFactory.Create(providerName, apiKey, model);
