@@ -112,6 +112,35 @@ public class DeepAgentFactoryTests
         Assert.Equal(2, fakeClient.ToolCallCount);
     }
 
+    [Fact]
+    public async Task ChatClientAgent_PersistsToolMessagesAcrossSecondUserTurn()
+    {
+        var fakeClient = new FakeSecondTurnToolChatClient();
+        var tool = AIFunctionFactory.Create((string message) => $"Echo: {message}", "echo");
+        var agent = new ChatClientAgent(
+            fakeClient,
+            new ChatClientAgentOptions
+            {
+                ChatHistoryProvider = new InMemoryChatHistoryProvider(),
+                Name = "tool-agent",
+                ChatOptions = new ChatOptions
+                {
+                    Instructions = "Use tools when needed.",
+                    ToolMode = ChatToolMode.Auto,
+                    Tools = [tool]
+                }
+            });
+
+        var session = await agent.CreateSessionAsync("conversation-with-tools");
+
+        var first = await agent.RunAsync([new ChatMessage(ChatRole.User, "first turn")], session);
+        Assert.Contains("Final response after first turn", first.Text, StringComparison.Ordinal);
+
+        var second = await agent.RunAsync([new ChatMessage(ChatRole.User, "second turn")], session);
+        Assert.Contains("Second turn final", second.Text, StringComparison.Ordinal);
+        Assert.Equal(1, fakeClient.ToolCallCount);
+    }
+
     private sealed class FakeToolChatClient : IChatClient
     {
         public bool ToolWasCalled { get; private set; }
@@ -224,6 +253,59 @@ public class DeepAgentFactoryTests
             yield return new ChatResponseUpdate(ChatRole.Assistant, "Final after second tool round");
             await Task.CompletedTask;
         }
+
+        public object? GetService(Type serviceType, object? serviceKey = null)
+            => null;
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class FakeSecondTurnToolChatClient : IChatClient
+    {
+        public int ToolCallCount { get; private set; }
+
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+        {
+            var history = messages.ToList();
+            var lastUserText = history.LastOrDefault(m => m.Role == ChatRole.User)?.Text;
+            var hasToolResult = history.Any(m => m.Role == ChatRole.Tool);
+
+            if (lastUserText?.Contains("second turn", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return Task.FromResult(new ChatResponse
+                {
+                    Messages = [new ChatMessage(ChatRole.Assistant, "Second turn final")]
+                });
+            }
+
+            if (!hasToolResult && lastUserText?.Contains("first turn", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                ToolCallCount++;
+                var call = new FunctionCallContent("call-1", "echo", new Dictionary<string, object?> { ["message"] = "first" });
+                return Task.FromResult(new ChatResponse
+                {
+                    Messages = [new ChatMessage(ChatRole.Assistant, [call])]
+                });
+            }
+
+            if (hasToolResult && lastUserText?.Contains("first turn", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return Task.FromResult(new ChatResponse
+                {
+                    Messages = [new ChatMessage(ChatRole.Assistant, "Final response after first turn")]
+                });
+            }
+
+            return Task.FromResult(new ChatResponse
+            {
+                Messages = [new ChatMessage(ChatRole.Assistant, "Unexpected state")]
+            });
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => AsyncEnumerable.Empty<ChatResponseUpdate>();
 
         public object? GetService(Type serviceType, object? serviceKey = null)
             => null;

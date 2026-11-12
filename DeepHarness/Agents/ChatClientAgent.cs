@@ -98,10 +98,11 @@ public sealed class ChatClientAgent
         _logger.LogDebug("Agent {Name} invoking chat client with {Count} messages", Name, history.Count);
 
         ChatResponse response;
+        List<ChatMessage> persistedMessages;
         try
         {
             response = await ChatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
-            response = await ExecuteToolCallsAsync(history, response, chatOptions, cancellationToken).ConfigureAwait(false);
+            (response, persistedMessages) = await ExecuteToolCallsAsync(history, response, chatOptions, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -115,8 +116,8 @@ public sealed class ChatClientAgent
             msg.AuthorName ??= Name;
         }
 
-        // Persist new messages (input + response).
-        await StoreHistoryAsync(session, inputList, response.Messages, cancellationToken).ConfigureAwait(false);
+        // Persist the full message chain, including any assistant/tool round-trips.
+        await StoreHistoryAsync(session, inputList, persistedMessages.Concat(response.Messages), cancellationToken).ConfigureAwait(false);
 
         return response;
     }
@@ -143,6 +144,7 @@ public sealed class ChatClientAgent
         _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", Name, history.Count);
 
         var allUpdates = new List<ChatResponseUpdate>();
+        var persistedMessages = new List<ChatMessage>();
 
         const int maxToolRounds = 10;
         for (var round = 0; round < maxToolRounds; round++)
@@ -215,8 +217,13 @@ public sealed class ChatClientAgent
                 var result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken).ConfigureAwait(false);
                 var resultText = result?.ToString() ?? string.Empty;
 
-                history.Add(new ChatMessage(ChatRole.Assistant, [call]));
-                history.Add(new ChatMessage(ChatRole.Tool, resultText));
+                var assistantToolMessage = new ChatMessage(ChatRole.Assistant, [call]);
+                var toolResultMessage = new ChatMessage(ChatRole.Tool, resultText);
+
+                history.Add(assistantToolMessage);
+                history.Add(toolResultMessage);
+                persistedMessages.Add(assistantToolMessage);
+                persistedMessages.Add(toolResultMessage);
                 hadToolExecution = true;
             }
 
@@ -224,9 +231,9 @@ public sealed class ChatClientAgent
                 break;
         }
 
-        // Build the response messages from accumulated updates and persist.
+        // Build the response messages from accumulated updates and persist the full chain.
         var responseMessages = allUpdates.ToChatResponse().Messages;
-        await StoreHistoryAsync(session, inputList, responseMessages, cancellationToken).ConfigureAwait(false);
+        await StoreHistoryAsync(session, inputList, persistedMessages.Concat(responseMessages), cancellationToken).ConfigureAwait(false);
     }
 
     // ──────────────────────────────────────────────────────
@@ -259,13 +266,14 @@ public sealed class ChatClientAgent
         await _historyProvider.InvokedAsync(invokedContext, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<ChatResponse> ExecuteToolCallsAsync(
+    private async Task<(ChatResponse Response, List<ChatMessage> PersistedMessages)> ExecuteToolCallsAsync(
         IList<ChatMessage> history,
         ChatResponse response,
         ChatOptions? chatOptions,
         CancellationToken cancellationToken)
     {
         const int maxToolRounds = 10;
+        var persistedMessages = new List<ChatMessage>();
 
         for (var round = 0; round < maxToolRounds; round++)
         {
@@ -276,7 +284,7 @@ public sealed class ChatClientAgent
 
             if (toolCalls.Count == 0)
             {
-                return response;
+                return (response, persistedMessages);
             }
 
             var hadToolExecution = false;
@@ -296,17 +304,23 @@ public sealed class ChatClientAgent
                 var result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken).ConfigureAwait(false);
                 var resultText = result?.ToString() ?? string.Empty;
 
-                history.Add(new ChatMessage(ChatRole.Assistant, [call]));
-                history.Add(new ChatMessage(ChatRole.Tool, resultText));
+                var assistantToolMessage = new ChatMessage(ChatRole.Assistant, [call]);
+                var toolResultMessage = new ChatMessage(ChatRole.Tool, resultText);
+
+                history.Add(assistantToolMessage);
+                history.Add(toolResultMessage);
+                persistedMessages.Add(assistantToolMessage);
+                persistedMessages.Add(toolResultMessage);
                 hadToolExecution = true;
             }
 
             if (!hadToolExecution)
             {
-                return response;
+                return (response, persistedMessages);
             }
 
             response = await ChatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
+            persistedMessages.AddRange(response.Messages);
         }
 
         throw new InvalidOperationException("The tool-calling loop exceeded the maximum allowed rounds.");
