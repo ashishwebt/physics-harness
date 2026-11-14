@@ -16,7 +16,8 @@ public static class AgentServiceCollectionExtensions
         string connectionStringMessages,
         string name = DeepAgentFactory.DefaultAgentName,
         string? systemPrompt = null,
-        string providerName = "google")
+        string providerName = "google",
+        string? endpoint = null)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -49,7 +50,7 @@ public static class AgentServiceCollectionExtensions
             var chatHistoryProvider = provider.GetRequiredService<DbChatHistoryProvider>();
             var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
 
-            var chatClient = ChatClientFactory.Create(providerName, apiKey, model);
+            var chatClient = ChatClientFactory.Create(providerName, apiKey, model, endpoint);
 
             return new AgentService(
                 chatClient,
