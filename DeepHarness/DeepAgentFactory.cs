@@ -24,9 +24,19 @@ public static class DeepAgentFactory
         - Respect backend boundaries and do not access data outside the allowed environment.
         """;
 
-    public static string BuildSystemPrompt(string? systemPrompt = null)
+    public static string BuildSystemPrompt(string? systemPrompt = null, IBackend? backend = null)
     {
         var sections = new List<string> { DefaultSystemPrompt.Trim() };
+
+        if (backend is CompositeBackend composite)
+        {
+            var lines = new List<string> { "- / — default workspace root" };
+            foreach (var route in composite.Routes)
+            {
+                lines.Add($"- {route} — routed workspace");
+            }
+            sections.Add("Available workspace paths (all file tools accept absolute virtual paths):\n" + string.Join('\n', lines));
+        }
 
         if (!string.IsNullOrWhiteSpace(systemPrompt))
         {
@@ -62,7 +72,7 @@ public static class DeepAgentFactory
                 Name = agentName,
                 ChatOptions = new ChatOptions
                 {
-                    Instructions = BuildSystemPrompt(systemPrompt),
+                    Instructions = BuildSystemPrompt(systemPrompt, backend),
                     Tools = [
                         AIFunctionFactory.Create(tools.List, "ls"),
                         AIFunctionFactory.Create(tools.Read, "read_file"),
@@ -86,7 +96,8 @@ public static class DeepAgentFactory
     {
         var tools = new BackendTools(backend, chatClient);
         var instructions = BuildSystemPrompt(
-            systemPrompt ?? "You are a read-only research subagent. Complete only the delegated task. Use discovery, reading, and search tools; do not modify files or delegate further.");
+            systemPrompt ?? "You are a read-only research subagent. Complete only the delegated task. Use discovery, reading, and search tools; do not modify files or delegate further.",
+            backend);
 
 
         return new ChatClientAgent(

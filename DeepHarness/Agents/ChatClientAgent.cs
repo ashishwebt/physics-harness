@@ -143,8 +143,8 @@ public sealed class ChatClientAgent
 
         _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", Name, history.Count);
 
-        var allUpdates = new List<ChatResponseUpdate>();
         var persistedMessages = new List<ChatMessage>();
+        List<ChatResponseUpdate> finalRoundUpdates = [];
 
         const int maxToolRounds = 10;
         for (var round = 0; round < maxToolRounds; round++)
@@ -184,7 +184,6 @@ public sealed class ChatClientAgent
                         continue;
 
                     roundUpdates.Add(update);
-                    allUpdates.Add(update);
                     yield return new AgentResponseUpdate(update, Name);
                 }
             }
@@ -192,6 +191,8 @@ public sealed class ChatClientAgent
             {
                 await enumerator.DisposeAsync().ConfigureAwait(false);
             }
+
+            finalRoundUpdates = roundUpdates;
 
             var toolCalls = roundUpdates
                 .SelectMany(u => u.Contents)
@@ -231,8 +232,8 @@ public sealed class ChatClientAgent
                 break;
         }
 
-        // Build the response messages from accumulated updates and persist the full chain.
-        var responseMessages = allUpdates.ToChatResponse().Messages;
+        // Build the response messages from the final round and persist the full chain.
+        var responseMessages = finalRoundUpdates.ToChatResponse().Messages;
         await StoreHistoryAsync(session, inputList, persistedMessages.Concat(responseMessages), cancellationToken).ConfigureAwait(false);
     }
 
@@ -320,7 +321,6 @@ public sealed class ChatClientAgent
             }
 
             response = await ChatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
-            persistedMessages.AddRange(response.Messages);
         }
 
         throw new InvalidOperationException("The tool-calling loop exceeded the maximum allowed rounds.");

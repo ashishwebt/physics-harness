@@ -208,4 +208,42 @@ public class FilesystemBackendTests
             Directory.Delete(routeRoot, recursive: true);
         }
     }
+
+    [Fact]
+    public void CompositeBackend_PreservesRoutePrefixForDownloadsAndExactRouteRoots()
+    {
+        var defaultRoot = Path.Combine(Path.GetTempPath(), $"deepagent-default-route-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(defaultRoot);
+        var defaultBackend = new FilesystemBackend(defaultRoot);
+        defaultBackend.Write("/shared.txt", "default-shared");
+
+        var routeRoot = Path.Combine(Path.GetTempPath(), $"deepagent-route-root-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(routeRoot);
+        var routeBackend = new FilesystemBackend(routeRoot);
+        routeBackend.Write("/notes.txt", "route-note");
+
+        try
+        {
+            var backend = new CompositeBackend(defaultBackend, new Dictionary<string, IBackend>
+            {
+                ["/route/"] = routeBackend
+            });
+
+            var rootList = backend.List("/route");
+            Assert.Contains(rootList, entry => entry.Path == "/route/notes.txt");
+
+            var download = backend.DownloadFiles(["/route/notes.txt"]).Single();
+            Assert.Null(download.Error);
+            Assert.Equal("/route/notes.txt", download.Path);
+            Assert.Contains("route-note", System.Text.Encoding.UTF8.GetString(download.Content!));
+
+            var grep = backend.Grep("route-note", "/route");
+            Assert.Contains(grep, match => match.Path == "/route/notes.txt" && match.Line == 1);
+        }
+        finally
+        {
+            Directory.Delete(defaultRoot, recursive: true);
+            Directory.Delete(routeRoot, recursive: true);
+        }
+    }
 }

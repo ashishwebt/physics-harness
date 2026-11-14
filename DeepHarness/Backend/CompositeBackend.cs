@@ -15,9 +15,13 @@ public sealed class CompositeBackend : IBackend
         Default = defaultBackend;
         _routes = routes.Select(pair => new KeyValuePair<string, IBackend>(NormalizePrefix(pair.Key), pair.Value))
             .OrderByDescending(pair => pair.Key.Length).ToArray();
+        Routes = _routes.Select(r => r.Key).ToArray();
     }
 
     public IBackend Default { get; }
+
+    /// <summary>Configured virtual path prefixes (normalized with trailing slash), longest first.</summary>
+    public IReadOnlyList<string> Routes { get; }
 
     public IReadOnlyList<FileInfoEntry> List(string path)
     {
@@ -82,8 +86,9 @@ public sealed class CompositeBackend : IBackend
 
     public IReadOnlyList<FileDownloadResult> DownloadFiles(IEnumerable<string> paths) => paths.Select(path =>
     {
-        var (backend, inner, _) = Route(path);
-        return backend.DownloadFiles([inner]).Single();
+        var (backend, inner, prefix) = Route(path);
+        var result = backend.DownloadFiles([inner]).Single();
+        return prefix is null ? result : result with { Path = prefix.TrimEnd('/') + result.Path };
     }).ToArray();
 
     public IReadOnlyList<FileUploadResult> UploadFiles(IEnumerable<UploadedFile> files) => files.Select(file =>
@@ -97,8 +102,14 @@ public sealed class CompositeBackend : IBackend
     {
         var normalized = VirtualPath.Normalize(path);
         foreach (var (prefix, backend) in _routes)
-            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
-                return (backend, "/" + normalized[prefix.Length..], prefix);
+        {
+            var routedRoot = prefix.TrimEnd('/');
+            if (normalized == routedRoot || normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                var innerPath = normalized == routedRoot ? "/" : "/" + normalized[prefix.Length..];
+                return (backend, innerPath, prefix);
+            }
+        }
         return (Default, normalized, null);
     }
 
