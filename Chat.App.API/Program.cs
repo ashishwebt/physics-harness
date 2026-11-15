@@ -20,7 +20,7 @@ public class Program
         var agentModel = builder.Configuration["Agent:Model"] ?? string.Empty;
         var agentName = builder.Configuration["Agent:Name"] ?? string.Empty;
         var agentSystemPrompt = builder.Configuration["Agent:SystemPrompt"] ?? string.Empty;
-        var agentProvider = builder.Configuration["Agent:Provider"] ?? "google";
+        var agentProvider = builder.Configuration["Agent:Provider"] ?? string.Empty;
         var agentEndpoint = builder.Configuration["Agent:Endpoint"];
         var connectionStringMessages = builder.Configuration.GetConnectionString("ConnectionStringMessages")
             ?? throw new InvalidOperationException(
