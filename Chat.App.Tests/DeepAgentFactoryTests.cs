@@ -170,6 +170,35 @@ public class DeepAgentFactoryTests
     }
 
     [Fact]
+    public async Task ChatClientAgent_PersistsStructuredToolResultsForModelConsumption()
+    {
+        var fakeClient = new FakeToolChatClient();
+        var tool = AIFunctionFactory.Create((string message) => $"Echo: {message}", "echo");
+        var historyProvider = new InMemoryChatHistoryProvider();
+        var agent = new ChatClientAgent(
+            fakeClient,
+            new ChatClientAgentOptions
+            {
+                ChatHistoryProvider = historyProvider,
+                Name = "tool-agent",
+                ChatOptions = new ChatOptions
+                {
+                    Instructions = "Use tools when needed.",
+                    ToolMode = ChatToolMode.Auto,
+                    Tools = [tool]
+                }
+            });
+
+        var session = await agent.CreateSessionAsync("structured-tool-result-test");
+        await agent.RunAsync([new ChatMessage(ChatRole.User, "hello")], session);
+
+        var context = new InvokingContext(agent, session, []);
+        var messages = (await historyProvider.InvokingAsync(context)).ToList();
+
+        Assert.Contains(messages, m => m.Role == ChatRole.Tool && m.Contents.OfType<FunctionResultContent>().Any());
+    }
+
+    [Fact]
     public async Task ChatClientAgent_NoOrphanedToolCallsInNonStreamingPersistedHistory()
     {
         var fakeClient = new FakeToolChatClientMultiRound();
@@ -245,6 +274,17 @@ public class DeepAgentFactoryTests
         }
     }
 
+    private static string? GetToolResultText(ChatMessage? message)
+    {
+        if (message is null)
+        {
+            return null;
+        }
+
+        var result = message.Contents.OfType<FunctionResultContent>().LastOrDefault();
+        return result?.Result?.ToString();
+    }
+
     private sealed class FakeToolChatClient : IChatClient
     {
         public bool ToolWasCalled { get; private set; }
@@ -297,7 +337,7 @@ public class DeepAgentFactoryTests
                 });
             }
 
-            var toolMessage = history.LastOrDefault(m => m.Role == ChatRole.Tool)?.Text;
+            var toolMessage = GetToolResultText(history.LastOrDefault(m => m.Role == ChatRole.Tool));
             if (toolMessage == "Echo: first")
             {
                 ToolCallCount++;
@@ -345,7 +385,7 @@ public class DeepAgentFactoryTests
                 yield break;
             }
 
-            var toolMessage = history.LastOrDefault(m => m.Role == ChatRole.Tool)?.Text;
+            var toolMessage = GetToolResultText(history.LastOrDefault(m => m.Role == ChatRole.Tool));
             if (toolMessage == "Echo: first")
             {
                 ToolCallCount++;

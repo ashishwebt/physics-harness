@@ -204,10 +204,12 @@ public sealed class ChatClientAgent
                 }
 
                 var result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken).ConfigureAwait(false);
-                var resultText = result?.ToString() ?? string.Empty;
 
                 var assistantToolMessage = new ChatMessage(ChatRole.Assistant, [call]);
-                var toolResultMessage = new ChatMessage(ChatRole.Tool, resultText);
+                var toolResultMessage = new ChatMessage(ChatRole.Tool,
+                [
+                    new FunctionResultContent(call.CallId, result ?? string.Empty)
+                ]);
 
                 history.Add(assistantToolMessage);
                 history.Add(toolResultMessage);
@@ -291,10 +293,12 @@ public sealed class ChatClientAgent
                 }
 
                 var result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken).ConfigureAwait(false);
-                var resultText = result?.ToString() ?? string.Empty;
 
                 var assistantToolMessage = new ChatMessage(ChatRole.Assistant, [call]);
-                var toolResultMessage = new ChatMessage(ChatRole.Tool, resultText);
+                var toolResultMessage = new ChatMessage(ChatRole.Tool,
+                [
+                    new FunctionResultContent(call.CallId, result ?? string.Empty)
+                ]);
 
                 history.Add(assistantToolMessage);
                 history.Add(toolResultMessage);
