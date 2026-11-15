@@ -56,7 +56,7 @@ public sealed class AgentService : IAgentService
         [EnumeratorCancellation]
      CancellationToken ct = default)
     {
-        var store = await LoadMemoryStoreAsync(conversationId, ct);
+        var store = new SqlFileStore(_dbFactory, conversationId, MemoryNamespaceKey);
         var backend = new CompositeBackend(
             defaultBackend: new FilesystemBackend(Path.GetFullPath("./Physics", AppContext.BaseDirectory)),
             routes: new Dictionary<string, IBackend>
@@ -84,8 +84,6 @@ public sealed class AgentService : IAgentService
                 yield return update;
             }
         }
-
-        await SaveMemoryStoreAsync(conversationId, store, ct);
     }
 
     public async Task<IReadOnlyList<ChatMessage>> GetHistoryAsync(
@@ -131,64 +129,6 @@ public sealed class AgentService : IAgentService
                 row.Content.Length,
                 row.UpdatedAt.UtcDateTime))
             .ToArray();
-    }
-
-    private async Task<InMemoryFileStore> LoadMemoryStoreAsync(
-        string conversationId,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(conversationId))
-        {
-            throw new ArgumentException("Conversation ID is required.", nameof(conversationId));
-        }
-
-        var store = new InMemoryFileStore();
-        var rows = await GetMemoryFileRowsAsync(conversationId, ct);
-
-        foreach (var row in rows)
-        {
-            store.Put(row.NamespaceKey, row.Path, row.Content.ToArray());
-        }
-
-        return store;
-    }
-
-    private async Task SaveMemoryStoreAsync(
-        string conversationId,
-        InMemoryFileStore store,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(conversationId))
-        {
-            throw new ArgumentException("Conversation ID is required.", nameof(conversationId));
-        }
-
-        ArgumentNullException.ThrowIfNull(store);
-
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var existing = await db.MemoryFiles
-            .Where(x => x.ConversationId == conversationId && x.NamespaceKey == MemoryNamespaceKey)
-            .ToListAsync(ct);
-
-        if (existing.Count > 0)
-        {
-            db.MemoryFiles.RemoveRange(existing);
-        }
-
-        foreach (var (path, content) in store.List(MemoryNamespaceKey).OrderBy(x => x.Key, StringComparer.Ordinal))
-        {
-            db.MemoryFiles.Add(new ChatMemoryFileEntity
-            {
-                ConversationId = conversationId,
-                NamespaceKey = MemoryNamespaceKey,
-                Path = path,
-                Content = content.ToArray(),
-                UpdatedAt = DateTimeOffset.UtcNow
-            });
-        }
-
-        await db.SaveChangesAsync(ct);
     }
 
     private async Task<List<ChatMemoryFileEntity>> GetMemoryFileRowsAsync(
