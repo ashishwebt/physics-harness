@@ -14,6 +14,8 @@ public sealed class ChatClientAgent
 {
     private readonly ChatClientAgentOptions _options;
     private readonly ChatHistoryProvider _historyProvider;
+    private readonly IChatClient _chatClient;
+    private readonly string? _name;
     private readonly ILogger _logger;
 
     /// <summary>
@@ -47,26 +49,12 @@ public sealed class ChatClientAgent
         ArgumentNullException.ThrowIfNull(chatClient);
         ArgumentNullException.ThrowIfNull(options);
 
-        ChatClient = chatClient;
+        _chatClient = chatClient;
         _options = options;
         _historyProvider = options.ChatHistoryProvider;
+        _name = options.Name;
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<ChatClientAgent>();
     }
-
-    /// <summary>The underlying chat client used to invoke chat completions.</summary>
-    public IChatClient ChatClient { get; }
-
-    /// <summary>Display name of the agent.</summary>
-    public string? Name => _options.Name;
-
-    /// <summary>The configured chat history provider (always on).</summary>
-    public ChatHistoryProvider ChatHistoryProvider => _historyProvider;
-
-    /// <summary>Default chat options (instructions, tools, etc.).</summary>
-    public ChatOptions? ChatOptions => _options.ChatOptions;
-
-    /// <summary>System instructions from the options, if any.</summary>
-    public string? Instructions => _options.ChatOptions?.Instructions;
 
     /// <summary>
     /// Creates a new session for an existing conversation ID.
@@ -95,25 +83,25 @@ public sealed class ChatClientAgent
         var history = await LoadHistoryAsync(session, inputList, cancellationToken).ConfigureAwait(false);
         var chatOptions = MergeChatOptions(runOptions);
 
-        _logger.LogDebug("Agent {Name} invoking chat client with {Count} messages", Name, history.Count);
+        _logger.LogDebug("Agent {Name} invoking chat client with {Count} messages", _name, history.Count);
 
         ChatResponse response;
         List<ChatMessage> persistedMessages;
         try
         {
-            response = await ChatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
+            response = await _chatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
             (response, persistedMessages) = await ExecuteToolCallsAsync(history, response, chatOptions, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Chat client invocation failed for agent {Name}", Name);
+            _logger.LogError(ex, "Chat client invocation failed for agent {Name}", _name);
             throw;
         }
 
         // Set author name on response messages.
         foreach (var msg in response.Messages)
         {
-            msg.AuthorName ??= Name;
+            msg.AuthorName ??= _name;
         }
 
         // Persist the full message chain, including any assistant/tool round-trips.
@@ -141,7 +129,7 @@ public sealed class ChatClientAgent
         var history = await LoadHistoryAsync(session, inputList, cancellationToken).ConfigureAwait(false);
         var chatOptions = MergeChatOptions(runOptions);
 
-        _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", Name, history.Count);
+        _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", _name, history.Count);
 
         var persistedMessages = new List<ChatMessage>();
         List<ChatResponseUpdate> finalRoundUpdates = [];
@@ -152,11 +140,11 @@ public sealed class ChatClientAgent
             IAsyncEnumerator<ChatResponseUpdate> enumerator;
             try
             {
-                enumerator = ChatClient.GetStreamingResponseAsync(history, chatOptions, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                enumerator = _chatClient.GetStreamingResponseAsync(history, chatOptions, cancellationToken).GetAsyncEnumerator(cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Streaming chat client invocation failed for agent {Name}", Name);
+                _logger.LogError(ex, "Streaming chat client invocation failed for agent {Name}", _name);
                 throw;
             }
 
@@ -172,7 +160,7 @@ public sealed class ChatClientAgent
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Streaming failed for agent {Name}", Name);
+                        _logger.LogError(ex, "Streaming failed for agent {Name}", _name);
                         throw;
                     }
 
@@ -184,7 +172,7 @@ public sealed class ChatClientAgent
                         continue;
 
                     roundUpdates.Add(update);
-                    yield return new AgentResponseUpdate(update, Name);
+                    yield return new AgentResponseUpdate(update, _name);
                 }
             }
             finally
@@ -320,7 +308,7 @@ public sealed class ChatClientAgent
                 return (response, persistedMessages);
             }
 
-            response = await ChatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
+            response = await _chatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
         }
 
         throw new InvalidOperationException("The tool-calling loop exceeded the maximum allowed rounds.");
