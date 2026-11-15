@@ -61,7 +61,7 @@ public sealed class AgentService : IAgentService
             defaultBackend: new FilesystemBackend(Path.GetFullPath("./Physics", AppContext.BaseDirectory)),
             routes: new Dictionary<string, IBackend>
             {
-                ["/artifacts/"] = new InMemoryFsBackend(store, namespaceKey: MemoryNamespaceKey)
+                ["/artifacts/"] = new StoreBackend(store, namespaceKey: MemoryNamespaceKey)
             });
 
         var agent = DeepAgentFactory.Create(
