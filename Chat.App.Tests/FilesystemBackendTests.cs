@@ -136,10 +136,10 @@ public class FilesystemBackendTests
     }
 
     [Fact]
-    public void StoreBackend_TracksNamespacedVirtualFiles()
+    public void InMemoryFsBackend_TracksNamespacedVirtualFiles()
     {
         var store = new InMemoryFileStore();
-        var backend = new StoreBackend(store, "artifacts");
+        var backend = new InMemoryFsBackend(store, "artifacts");
 
         backend.Write("/docs/hello.txt", "one\ntwo");
         var read = backend.Read("/docs/hello.txt");
