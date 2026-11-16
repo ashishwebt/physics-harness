@@ -42,6 +42,14 @@ public static class AgentServiceCollectionExtensions
         services.AddDeepHarness(new DeepHarnessOptions
         {
             ConnectionStringMessages = connectionStringMessages,
+            ConfigureHistoryDb = dbContextOptions =>
+            {
+                dbContextOptions.UseSqlite(connectionStringMessages);
+            },
+            ConfigureStoreDb = dbContextOptions =>
+            {
+                dbContextOptions.UseSqlite(connectionStringMessages);
+            },
             ApiKey = apiKey,
             Model = model,
             Provider = providerName,

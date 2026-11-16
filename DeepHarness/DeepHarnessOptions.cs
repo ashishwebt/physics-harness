@@ -1,8 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace DeepHarness;
 
 public sealed class DeepHarnessOptions
 {
     public string ConnectionStringMessages { get; init; } = string.Empty;
+
+    public Action<DbContextOptionsBuilder>? ConfigureHistoryDb { get; init; }
+
+    public Action<DbContextOptionsBuilder>? ConfigureStoreDb { get; init; }
 
     public string AgentName { get; init; } = DeepAgentFactory.DefaultAgentName;
 
