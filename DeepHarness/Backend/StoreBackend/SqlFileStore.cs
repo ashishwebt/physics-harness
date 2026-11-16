@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 namespace DeepHarness.Backend;
 
 /// <summary>SQL-backed conversation store for agent memory files. Keeps file state persistent in the chat history database.</summary>
-public sealed class SqlFileStore(IDbContextFactory<ChatHistoryDbContext> dbFactory, string conversationId, string defaultNamespaceKey = "artifacts") : IFileStore
+public sealed class SqlFileStore(IDbContextFactory<SqlStoreDbContext> dbFactory, string conversationId, string defaultNamespaceKey = "artifacts") : IFileStore
 {
-    private readonly IDbContextFactory<ChatHistoryDbContext> _dbFactory = dbFactory;
+    private readonly IDbContextFactory<SqlStoreDbContext> _dbFactory = dbFactory;
     private readonly string _conversationId = string.IsNullOrWhiteSpace(conversationId) ? throw new ArgumentException("Conversation ID is required.", nameof(conversationId)) : conversationId;
     private readonly string _defaultNamespaceKey = string.IsNullOrWhiteSpace(defaultNamespaceKey) ? "artifacts" : defaultNamespaceKey;
 

@@ -32,20 +32,23 @@ public sealed class AgentService : IAgentService
     private const string MemoryNamespaceKey = "artifacts";
 
     private readonly IChatClient _chatClient;
-    private readonly IDbContextFactory<ChatHistoryDbContext> _dbFactory;
+    private readonly IDbContextFactory<ChatHistoryDbContext> _historyDbFactory;
+    private readonly IDbContextFactory<SqlStoreDbContext> _storeDbFactory;
     private readonly ChatHistoryProvider _chatHistoryProvider;
     private readonly string _agentName;
     private readonly string? _systemPrompt;
 
     public AgentService(
         IChatClient chatClient,
-        IDbContextFactory<ChatHistoryDbContext> dbFactory,
+        IDbContextFactory<ChatHistoryDbContext> historyDbFactory,
+        IDbContextFactory<SqlStoreDbContext> storeDbFactory,
         ChatHistoryProvider chatHistoryProvider,
         string agentName = DeepAgentFactory.DefaultAgentName,
         string? systemPrompt = null)
     {
         _chatClient = chatClient;
-        _dbFactory = dbFactory;
+        _historyDbFactory = historyDbFactory;
+        _storeDbFactory = storeDbFactory;
         _chatHistoryProvider = chatHistoryProvider;
         _agentName = string.IsNullOrWhiteSpace(agentName) ? DeepAgentFactory.DefaultAgentName : agentName;
         _systemPrompt = systemPrompt;
@@ -56,7 +59,7 @@ public sealed class AgentService : IAgentService
         [EnumeratorCancellation]
      CancellationToken ct = default)
     {
-        var store = new SqlFileStore(_dbFactory, conversationId, MemoryNamespaceKey);
+        var store = new SqlFileStore(_storeDbFactory, conversationId, MemoryNamespaceKey);
         var backend = new CompositeBackend(
             defaultBackend: new FilesystemBackend(Path.GetFullPath("./Physics", AppContext.BaseDirectory)),
             routes: new Dictionary<string, IBackend>
@@ -96,7 +99,7 @@ public sealed class AgentService : IAgentService
         }
 
 
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _historyDbFactory.CreateDbContextAsync(ct);
 
         var rows = await db.Messages
             .AsNoTracking()
@@ -135,7 +138,7 @@ public sealed class AgentService : IAgentService
         string conversationId,
         CancellationToken ct)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _storeDbFactory.CreateDbContextAsync(ct);
 
         return await db.MemoryFiles
             .AsNoTracking()

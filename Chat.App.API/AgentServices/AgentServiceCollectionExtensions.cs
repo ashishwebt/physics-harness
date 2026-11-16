@@ -2,6 +2,7 @@
 using Chat.App.API.AgentServices;
 using Chat.App.API.Services;
 using DeepHarness;
+using DeepHarness.Backend;
 using DeepHarness.HistoryProvider;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,17 +45,24 @@ public static class AgentServiceCollectionExtensions
             options.UseSqlite(connectionStringMessages);
         });
 
+        services.AddPooledDbContextFactory<SqlStoreDbContext>(options =>
+        {
+            options.UseSqlite(connectionStringMessages);
+        });
+
         services.AddSingleton<DbChatHistoryProvider>();
         services.AddSingleton<IAgentService>(provider =>
         {
             var chatHistoryProvider = provider.GetRequiredService<DbChatHistoryProvider>();
-            var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+            var historyDbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+            var storeDbFactory = provider.GetRequiredService<IDbContextFactory<SqlStoreDbContext>>();
 
             var chatClient = ChatClientFactory.Create(providerName, apiKey, model, endpoint);
 
             return new AgentService(
                 chatClient,
-                dbFactory,
+                historyDbFactory,
+                storeDbFactory,
                 chatHistoryProvider,
                 name,
                 systemPrompt);
@@ -66,16 +74,30 @@ public static class AgentServiceCollectionExtensions
         if (environment.IsDevelopment())
         {
             using var scope = provider.CreateScope();
-            var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
-            using var dbContext = dbFactory.CreateDbContext();
-
-            if (dbContext.Database.GetMigrations().Any())
+            var historyDbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+            using (var dbContext = historyDbFactory.CreateDbContext())
             {
-                dbContext.Database.Migrate();
+                if (dbContext.Database.GetMigrations().Any())
+                {
+                    dbContext.Database.Migrate();
+                }
+                else
+                {
+                    dbContext.Database.EnsureCreated();
+                }
             }
-            else
+
+            var storeDbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SqlStoreDbContext>>();
+            using (var dbContext = storeDbFactory.CreateDbContext())
             {
-                dbContext.Database.EnsureCreated();
+                if (dbContext.Database.GetMigrations().Any())
+                {
+                    dbContext.Database.Migrate();
+                }
+                else
+                {
+                    dbContext.Database.EnsureCreated();
+                }
             }
         }
 

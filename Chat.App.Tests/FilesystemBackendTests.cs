@@ -173,23 +173,23 @@ public class FilesystemBackendTests
     }
 
     [Fact]
-    public void SqlFileStore_PersistsConversationFilesToDatabase()
+    public void SqlFileStore_PersistsConversationFilesToSqlStoreDatabase()
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
 
         try
         {
-            var options = new DbContextOptionsBuilder<ChatHistoryDbContext>()
+            var options = new DbContextOptionsBuilder<SqlStoreDbContext>()
                 .UseSqlite(connection)
                 .Options;
 
-            using (var db = new ChatHistoryDbContext(options))
+            using (var db = new SqlStoreDbContext(options))
             {
                 db.Database.EnsureCreated();
             }
 
-            var factory = new TestDbContextFactory(options);
+            var factory = new TestSqlStoreDbContextFactory(options);
             var store = new SqlFileStore(factory, "conv-123", "artifacts");
 
             store.Put("artifacts", "/notes/hello.txt", new byte[] { 1, 2, 3 });
@@ -208,12 +208,12 @@ public class FilesystemBackendTests
         }
     }
 
-    private sealed class TestDbContextFactory(DbContextOptions<ChatHistoryDbContext> options) : IDbContextFactory<ChatHistoryDbContext>
+    private sealed class TestSqlStoreDbContextFactory(DbContextOptions<SqlStoreDbContext> options) : IDbContextFactory<SqlStoreDbContext>
     {
-        public ChatHistoryDbContext CreateDbContext()
+        public SqlStoreDbContext CreateDbContext()
             => new(options);
 
-        public ValueTask<ChatHistoryDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+        public ValueTask<SqlStoreDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult(CreateDbContext());
     }
 
