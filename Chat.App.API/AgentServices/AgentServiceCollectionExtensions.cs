@@ -1,5 +1,4 @@
 
-using Chat.App.API.AgentServices;
 using Chat.App.API.Services;
 using DeepHarness;
 using DeepHarness.Backend;
@@ -40,17 +39,18 @@ public static class AgentServiceCollectionExtensions
             throw new ArgumentException("Connection string messages is required.", nameof(connectionStringMessages));
         }
 
-        services.AddPooledDbContextFactory<ChatHistoryDbContext>(options =>
+        services.AddDeepHarness(new DeepHarnessOptions
         {
-            options.UseSqlite(connectionStringMessages);
+            ConnectionStringMessages = connectionStringMessages,
+            ApiKey = apiKey,
+            Model = model,
+            Provider = providerName,
+            Endpoint = endpoint,
+            AgentName = name,
+            SystemPrompt = systemPrompt,
+            EnsureDatabaseCreatedOnStartup = true
         });
 
-        services.AddPooledDbContextFactory<SqlStoreDbContext>(options =>
-        {
-            options.UseSqlite(connectionStringMessages);
-        });
-
-        services.AddSingleton<DbChatHistoryProvider>();
         services.AddSingleton<IAgentService>(provider =>
         {
             var chatHistoryProvider = provider.GetRequiredService<DbChatHistoryProvider>();
@@ -67,39 +67,6 @@ public static class AgentServiceCollectionExtensions
                 name,
                 systemPrompt);
         });
-
-        var provider = services.BuildServiceProvider();
-        var environment = provider.GetRequiredService<IHostEnvironment>();
-
-        if (environment.IsDevelopment())
-        {
-            using var scope = provider.CreateScope();
-            var historyDbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
-            using (var dbContext = historyDbFactory.CreateDbContext())
-            {
-                if (dbContext.Database.GetMigrations().Any())
-                {
-                    dbContext.Database.Migrate();
-                }
-                else
-                {
-                    dbContext.Database.EnsureCreated();
-                }
-            }
-
-            var storeDbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SqlStoreDbContext>>();
-            using (var dbContext = storeDbFactory.CreateDbContext())
-            {
-                if (dbContext.Database.GetMigrations().Any())
-                {
-                    dbContext.Database.Migrate();
-                }
-                else
-                {
-                    dbContext.Database.EnsureCreated();
-                }
-            }
-        }
 
         return services;
     }

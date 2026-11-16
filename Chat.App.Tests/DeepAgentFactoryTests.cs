@@ -2,7 +2,10 @@ using System.Runtime.CompilerServices;
 using DeepHarness;
 using DeepHarness.Agents;
 using DeepHarness.Backend;
+using DeepHarness.HistoryProvider;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Chat.App.Tests;
@@ -49,6 +52,26 @@ public class DeepAgentFactoryTests
     public void DefaultAgentName_IsUsedWhenNoNameIsProvided()
     {
         Assert.Equal("DeepAgent", DeepAgentFactory.DefaultAgentName);
+    }
+
+    [Fact]
+    public void AddDeepHarness_RegistersHistoryProviderAndFactories()
+    {
+        var services = new ServiceCollection();
+        var connectionString = $"Data Source={Path.Combine(Path.GetTempPath(), $"deepagent-di-{Guid.NewGuid():N}.db")}";
+
+        services.AddDeepHarness(new DeepHarnessOptions
+        {
+            ConnectionStringMessages = connectionString,
+            AgentName = "DeepAgent",
+            EnsureDatabaseCreatedOnStartup = false
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetService<DbChatHistoryProvider>());
+        Assert.NotNull(provider.GetService<IDbContextFactory<ChatHistoryDbContext>>());
+        Assert.NotNull(provider.GetService<IDbContextFactory<SqlStoreDbContext>>());
     }
 
     [Fact]
