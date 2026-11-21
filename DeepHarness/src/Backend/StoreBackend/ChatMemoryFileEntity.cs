@@ -1,4 +1,4 @@
-namespace DeepHarness.HistoryProvider;
+namespace DeepHarness.Backend;
 
 public sealed class ChatMemoryFileEntity
 {

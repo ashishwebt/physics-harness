@@ -1,4 +1,3 @@
-using DeepHarness.HistoryProvider;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeepHarness.Backend;
