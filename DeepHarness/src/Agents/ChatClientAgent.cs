@@ -83,12 +83,12 @@ public sealed class ChatClientAgent
 
         _logger.LogDebug("Agent {Name} invoking chat client with {Count} messages", _name, ctx.History.Count);
 
-        // Non-streaming states never emit updates; just drive the machine to completion.
-        await foreach (var _ in RunLoopAsync(ctx, cancellationToken).ConfigureAwait(false))
+        // Non-streaming runs produce no updates; drive the loop to completion.
+        await foreach (var _ in AgentLoopState.RunAsync(ctx, cancellationToken).ConfigureAwait(false))
         {
         }
 
-        // History was already persisted incrementally by the loop's PersistState steps.
+        // History was already persisted incrementally by the loop.
         return ctx.Response!;
     }
 
@@ -110,33 +110,9 @@ public sealed class ChatClientAgent
 
         _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", _name, ctx.History.Count);
 
-        await foreach (var update in RunLoopAsync(ctx, cancellationToken).ConfigureAwait(false))
+        await foreach (var update in AgentLoopState.RunAsync(ctx, cancellationToken).ConfigureAwait(false))
         {
             yield return new AgentResponseUpdate(update, _name);
-        }
-    }
-
-    // ──────────────────────────────────────────────────────
-    //  State machine driver
-    // ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Runs states until one reports no successor, forwarding any streaming updates they emit.
-    /// </summary>
-    private static async IAsyncEnumerable<ChatResponseUpdate> RunLoopAsync(
-        AgentLoopContext ctx,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        AgentLoopState? state = ctx.CreateModelState();
-
-        while (state is not null)
-        {
-            await foreach (var update in state.RunAsync(ctx, cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
-            {
-                yield return update;
-            }
-
-            state = state.Next;
         }
     }
 
