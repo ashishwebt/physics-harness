@@ -3,11 +3,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Chat.App.API.Models;
-using Microsoft.Agents.AI;
+using DeepHarness;
+using DeepHarness.Backend;
+using DeepHarness.HistoryProvider;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
-using DeepHarness.Backend;
-using DeepHarness;
+
 namespace Chat.App.API.Services;
 
 public interface IAgentService
@@ -31,20 +32,23 @@ public sealed class AgentService : IAgentService
     private const string MemoryNamespaceKey = "artifacts";
 
     private readonly IChatClient _chatClient;
-    private readonly IDbContextFactory<ChatHistoryDbContext> _dbFactory;
+    private readonly IDbContextFactory<ChatHistoryDbContext> _historyDbFactory;
+    private readonly IDbContextFactory<SqlStoreDbContext> _storeDbFactory;
     private readonly ChatHistoryProvider _chatHistoryProvider;
     private readonly string _agentName;
     private readonly string? _systemPrompt;
 
     public AgentService(
         IChatClient chatClient,
-        IDbContextFactory<ChatHistoryDbContext> dbFactory,
+        IDbContextFactory<ChatHistoryDbContext> historyDbFactory,
+        IDbContextFactory<SqlStoreDbContext> storeDbFactory,
         ChatHistoryProvider chatHistoryProvider,
         string agentName = DeepAgentFactory.DefaultAgentName,
         string? systemPrompt = null)
     {
         _chatClient = chatClient;
-        _dbFactory = dbFactory;
+        _historyDbFactory = historyDbFactory;
+        _storeDbFactory = storeDbFactory;
         _chatHistoryProvider = chatHistoryProvider;
         _agentName = string.IsNullOrWhiteSpace(agentName) ? DeepAgentFactory.DefaultAgentName : agentName;
         _systemPrompt = systemPrompt;
@@ -55,7 +59,7 @@ public sealed class AgentService : IAgentService
         [EnumeratorCancellation]
      CancellationToken ct = default)
     {
-        var store = await LoadMemoryStoreAsync(conversationId, ct);
+        var store = new SqlFileStore(_storeDbFactory, conversationId, MemoryNamespaceKey);
         var backend = new CompositeBackend(
             defaultBackend: new FilesystemBackend(Path.GetFullPath("./Physics", AppContext.BaseDirectory)),
             routes: new Dictionary<string, IBackend>
@@ -70,21 +74,19 @@ public sealed class AgentService : IAgentService
             _agentName,
             _systemPrompt);
 
-        AgentSession session = await agent.CreateSessionAsync(ct);
+        AgentSession session = await agent.CreateSessionAsync(conversationId, ct);
         foreach (var providerKey in _chatHistoryProvider.StateKeys)
         {
-            session.StateBag.SetValue(providerKey, conversationId);
+            session.StateBag[providerKey] = conversationId;
         }
 
-        await foreach (var update in agent.RunStreamingAsync(message, session, cancellationToken: ct))
+        await foreach (var update in agent.RunStreamingAsync([message], session, cancellationToken: ct))
         {
             if (!string.IsNullOrEmpty(update.Text))
             {
                 yield return update;
             }
         }
-
-        await SaveMemoryStoreAsync(conversationId, store, ct);
     }
 
     public async Task<IReadOnlyList<ChatMessage>> GetHistoryAsync(
@@ -97,7 +99,7 @@ public sealed class AgentService : IAgentService
         }
 
 
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _historyDbFactory.CreateDbContextAsync(ct);
 
         var rows = await db.Messages
             .AsNoTracking()
@@ -132,69 +134,11 @@ public sealed class AgentService : IAgentService
             .ToArray();
     }
 
-    private async Task<InMemoryFileStore> LoadMemoryStoreAsync(
-        string conversationId,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(conversationId))
-        {
-            throw new ArgumentException("Conversation ID is required.", nameof(conversationId));
-        }
-
-        var store = new InMemoryFileStore();
-        var rows = await GetMemoryFileRowsAsync(conversationId, ct);
-
-        foreach (var row in rows)
-        {
-            store.Put(row.NamespaceKey, row.Path, row.Content.ToArray());
-        }
-
-        return store;
-    }
-
-    private async Task SaveMemoryStoreAsync(
-        string conversationId,
-        InMemoryFileStore store,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(conversationId))
-        {
-            throw new ArgumentException("Conversation ID is required.", nameof(conversationId));
-        }
-
-        ArgumentNullException.ThrowIfNull(store);
-
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var existing = await db.MemoryFiles
-            .Where(x => x.ConversationId == conversationId && x.NamespaceKey == MemoryNamespaceKey)
-            .ToListAsync(ct);
-
-        if (existing.Count > 0)
-        {
-            db.MemoryFiles.RemoveRange(existing);
-        }
-
-        foreach (var (path, content) in store.List(MemoryNamespaceKey).OrderBy(x => x.Key, StringComparer.Ordinal))
-        {
-            db.MemoryFiles.Add(new ChatMemoryFileEntity
-            {
-                ConversationId = conversationId,
-                NamespaceKey = MemoryNamespaceKey,
-                Path = path,
-                Content = content.ToArray(),
-                UpdatedAt = DateTimeOffset.UtcNow
-            });
-        }
-
-        await db.SaveChangesAsync(ct);
-    }
-
     private async Task<List<ChatMemoryFileEntity>> GetMemoryFileRowsAsync(
         string conversationId,
         CancellationToken ct)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _storeDbFactory.CreateDbContextAsync(ct);
 
         return await db.MemoryFiles
             .AsNoTracking()

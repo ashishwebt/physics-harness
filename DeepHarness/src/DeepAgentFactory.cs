@@ -1,13 +1,12 @@
+using DeepHarness.Agents;
 using DeepHarness.Backend;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace DeepHarness;
 
 /// <summary>
 /// Creates a ready-to-run DeepAgent with built-in file tools over the supplied backend.
-/// All implementation remains in the console project for now,
-/// so this API can later move into a class library without changing the app entry point.
+/// Implementation is packaged in the DeepHarness class library.
 /// </summary>
 public static class DeepAgentFactory
 {
@@ -25,9 +24,19 @@ public static class DeepAgentFactory
         - Respect backend boundaries and do not access data outside the allowed environment.
         """;
 
-    public static string BuildSystemPrompt(string? systemPrompt = null)
+    public static string BuildSystemPrompt(string? systemPrompt = null, IBackend? backend = null)
     {
         var sections = new List<string> { DefaultSystemPrompt.Trim() };
+
+        if (backend is CompositeBackend composite)
+        {
+            var lines = new List<string> { "- / — default workspace root" };
+            foreach (var route in composite.Routes)
+            {
+                lines.Add($"- {route} — routed workspace");
+            }
+            sections.Add("Available workspace paths (all file tools accept absolute virtual paths):\n" + string.Join('\n', lines));
+        }
 
         if (!string.IsNullOrWhiteSpace(systemPrompt))
         {
@@ -53,15 +62,17 @@ public static class DeepAgentFactory
         ArgumentNullException.ThrowIfNull(backend);
 
         var tools = new BackendTools(backend, chatClient);
-        var agent = chatClient.AsAIAgent(
+
+
+        return new ChatClientAgent(
+            chatClient,
             new ChatClientAgentOptions
             {
                 ChatHistoryProvider = chatHistoryProvider,
                 Name = agentName,
                 ChatOptions = new ChatOptions
                 {
-                    Instructions = BuildSystemPrompt(systemPrompt),
-                    MaxOutputTokens = 3000,
+                    Instructions = BuildSystemPrompt(systemPrompt, backend),
                     Tools = [
                         AIFunctionFactory.Create(tools.List, "ls"),
                         AIFunctionFactory.Create(tools.Read, "read_file"),
@@ -75,8 +86,6 @@ public static class DeepAgentFactory
                     ]
                 },
             });
-
-        return agent;
     }
 
     internal static ChatClientAgent CreateResearchAgent(
@@ -87,13 +96,23 @@ public static class DeepAgentFactory
     {
         var tools = new BackendTools(backend, chatClient);
         var instructions = BuildSystemPrompt(
-            systemPrompt ?? "You are a read-only research subagent. Complete only the delegated task. Use discovery, reading, and search tools; do not modify files or delegate further.");
+            systemPrompt ?? "You are a read-only research subagent. Complete only the delegated task. Use discovery, reading, and search tools; do not modify files or delegate further.",
+            backend);
+
 
         return new ChatClientAgent(
             chatClient,
+            chatHistoryProvider: new InMemoryChatHistoryProvider(),
             name: agentName,
             instructions: instructions,
-            tools: [AIFunctionFactory.Create(tools.List, "ls"), AIFunctionFactory.Create(tools.Read, "read_file"), AIFunctionFactory.Create(tools.Glob, "glob"), AIFunctionFactory.Create(tools.Grep, "grep")]);
+            tools: [
+                AIFunctionFactory.Create(tools.List, "ls"),
+                AIFunctionFactory.Create(tools.Read, "read_file"),
+                AIFunctionFactory.Create(tools.Glob, "glob"),
+                AIFunctionFactory.Create(tools.Grep, "grep")
+            ]);
     }
 }
+
+
 

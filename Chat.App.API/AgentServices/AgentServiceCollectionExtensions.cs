@@ -1,13 +1,9 @@
 
-using System.ClientModel;
-using Chat.App.API.AgentServices.HistoryProvider;
 using Chat.App.API.Services;
 using DeepHarness;
-using Microsoft.Agents.AI;
+using DeepHarness.Backend;
+using DeepHarness.HistoryProvider;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.AI;
-using OpenAI;
-using OpenAI.Chat;
 
 namespace Chat.App.API.AgentServices;
 
@@ -18,8 +14,11 @@ public static class AgentServiceCollectionExtensions
         string apiKey,
         string model,
         string connectionStringMessages,
+        string connectionStringConversation,
         string name = DeepAgentFactory.DefaultAgentName,
-        string? systemPrompt = null)
+        string? systemPrompt = null,
+        string providerName = "google",
+        string? endpoint = null)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -41,51 +40,59 @@ public static class AgentServiceCollectionExtensions
             throw new ArgumentException("Connection string messages is required.", nameof(connectionStringMessages));
         }
 
-        services.AddPooledDbContextFactory<ChatHistoryDbContext>(options =>
+        services.AddDeepHarness(new DeepHarnessOptions
         {
-            options.UseSqlite(connectionStringMessages);
+            ConnectionStringMessages = connectionStringMessages,
+            ConfigureHistoryDb = dbContextOptions =>
+            {
+                dbContextOptions.UseSqlite(connectionStringMessages);
+            },
+            ConfigureStoreDb = dbContextOptions =>
+            {
+                dbContextOptions.UseSqlite(connectionStringConversation);
+            },
+            ApiKey = apiKey,
+            Model = model,
+            Provider = providerName,
+            Endpoint = endpoint,
+            AgentName = name,
+            SystemPrompt = systemPrompt,
         });
 
-        services.AddSingleton<SqliteChatHistoryProvider>();
+        using var scope = services.BuildServiceProvider().CreateScope();
+        var historyFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+        using (var db = historyFactory.CreateDbContext())
+        {
+            if (db.Database.GetMigrations().Any())
+                db.Database.Migrate();
+            else
+                db.Database.EnsureCreated();
+        }
+
+        var storeFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SqlStoreDbContext>>();
+        using (var db = storeFactory.CreateDbContext())
+        {
+            if (db.Database.GetMigrations().Any())
+                db.Database.Migrate();
+            else
+                db.Database.EnsureCreated();
+        }
         services.AddSingleton<IAgentService>(provider =>
         {
-            var chatHistoryProvider = provider.GetRequiredService<SqliteChatHistoryProvider>();
-            var dbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+            var chatHistoryProvider = provider.GetRequiredService<DbChatHistoryProvider>();
+            var historyDbFactory = provider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+            var storeDbFactory = provider.GetRequiredService<IDbContextFactory<SqlStoreDbContext>>();
 
-            var openRouterClient = new ChatClient(
-                model: model,
-                credential: new ApiKeyCredential(apiKey),
-                options: new OpenAIClientOptions
-                {
-                    Endpoint = new Uri("https://openrouter.ai/api/v1")
-                });
+            var chatClient = ChatClientFactory.Create(providerName, apiKey, model, endpoint);
 
             return new AgentService(
-                openRouterClient.AsIChatClient(),
-                dbFactory,
+                chatClient,
+                historyDbFactory,
+                storeDbFactory,
                 chatHistoryProvider,
                 name,
                 systemPrompt);
         });
-
-        var provider = services.BuildServiceProvider();
-        var environment = provider.GetRequiredService<IHostEnvironment>();
-
-        if (environment.IsDevelopment())
-        {
-            using var scope = provider.CreateScope();
-            var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
-            using var dbContext = dbFactory.CreateDbContext();
-
-            if (dbContext.Database.GetMigrations().Any())
-            {
-                dbContext.Database.Migrate();
-            }
-            else
-            {
-                dbContext.Database.EnsureCreated();
-            }
-        }
 
         return services;
     }

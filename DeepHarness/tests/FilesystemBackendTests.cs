@@ -1,7 +1,10 @@
 using DeepHarness.Backend;
+using DeepHarness.HistoryProvider;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace Chat.App.Tests;
+namespace DeepHarness.Tests;
 
 public class FilesystemBackendTests
 {
@@ -112,7 +115,7 @@ public class FilesystemBackendTests
             var read = backend.Read("/docs/alpha.txt", offset: 1, limit: 1);
             Assert.Equal(3, read.TotalLines);
             Assert.Equal(2, read.StartLine);
-            Assert.Equal("world", read.Content.Trim());
+            Assert.Equal("world", read.Content?.Trim());
 
             var invalidOffset = backend.Read("/docs/alpha.txt", offset: -1);
             Assert.Equal("offset must be non-negative", invalidOffset.Error);
@@ -143,7 +146,7 @@ public class FilesystemBackendTests
 
         backend.Write("/docs/hello.txt", "one\ntwo");
         var read = backend.Read("/docs/hello.txt");
-        Assert.Equal("one\ntwo", read.Content.Replace("\r", string.Empty));
+        Assert.Equal("one\ntwo", read.Content?.Replace("\r", string.Empty));
 
         var edit = backend.Edit("/docs/hello.txt", "one", "alpha");
         Assert.Null(edit.Error);
@@ -167,6 +170,51 @@ public class FilesystemBackendTests
         var deleted = backend.Delete("/docs/hello.txt");
         Assert.Null(deleted.Error);
         Assert.Null(backend.Read("/docs/hello.txt").Content);
+    }
+
+    [Fact]
+    public void SqlFileStore_PersistsConversationFilesToSqlStoreDatabase()
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+
+        try
+        {
+            var options = new DbContextOptionsBuilder<SqlStoreDbContext>()
+                .UseSqlite(connection)
+                .Options;
+
+            using (var db = new SqlStoreDbContext(options))
+            {
+                db.Database.EnsureCreated();
+            }
+
+            var factory = new TestSqlStoreDbContextFactory(options);
+            var store = new SqlFileStore(factory, "conv-123", "artifacts");
+
+            store.Put("artifacts", "/notes/hello.txt", new byte[] { 1, 2, 3 });
+
+            Assert.Equal(new byte[] { 1, 2, 3 }, store.Get("artifacts", "/notes/hello.txt"));
+            Assert.Contains("/notes/hello.txt", store.List("artifacts").Keys);
+
+            using (var db = factory.CreateDbContext())
+            {
+                Assert.Equal(1, db.MemoryFiles.Count(x => x.ConversationId == "conv-123" && x.NamespaceKey == "artifacts"));
+            }
+        }
+        finally
+        {
+            connection.Dispose();
+        }
+    }
+
+    private sealed class TestSqlStoreDbContextFactory(DbContextOptions<SqlStoreDbContext> options) : IDbContextFactory<SqlStoreDbContext>
+    {
+        public SqlStoreDbContext CreateDbContext()
+            => new(options);
+
+        public ValueTask<SqlStoreDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(CreateDbContext());
     }
 
     [Fact]
@@ -201,6 +249,44 @@ public class FilesystemBackendTests
 
             var glob = backend.Glob("**/*.txt", "/route/");
             Assert.Contains(glob, entry => entry.Path == "/route/file.txt");
+        }
+        finally
+        {
+            Directory.Delete(defaultRoot, recursive: true);
+            Directory.Delete(routeRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void CompositeBackend_PreservesRoutePrefixForDownloadsAndExactRouteRoots()
+    {
+        var defaultRoot = Path.Combine(Path.GetTempPath(), $"deepagent-default-route-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(defaultRoot);
+        var defaultBackend = new FilesystemBackend(defaultRoot);
+        defaultBackend.Write("/shared.txt", "default-shared");
+
+        var routeRoot = Path.Combine(Path.GetTempPath(), $"deepagent-route-root-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(routeRoot);
+        var routeBackend = new FilesystemBackend(routeRoot);
+        routeBackend.Write("/notes.txt", "route-note");
+
+        try
+        {
+            var backend = new CompositeBackend(defaultBackend, new Dictionary<string, IBackend>
+            {
+                ["/route/"] = routeBackend
+            });
+
+            var rootList = backend.List("/route");
+            Assert.Contains(rootList, entry => entry.Path == "/route/notes.txt");
+
+            var download = backend.DownloadFiles(["/route/notes.txt"]).Single();
+            Assert.Null(download.Error);
+            Assert.Equal("/route/notes.txt", download.Path);
+            Assert.Contains("route-note", System.Text.Encoding.UTF8.GetString(download.Content!));
+
+            var grep = backend.Grep("route-note", "/route");
+            Assert.Contains(grep, match => match.Path == "/route/notes.txt" && match.Line == 1);
         }
         finally
         {
