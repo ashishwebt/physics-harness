@@ -64,7 +64,6 @@ public class DeepAgentFactoryTests
         {
             ConnectionStringMessages = connectionString,
             AgentName = "DeepAgent",
-            EnsureDatabaseCreatedOnStartup = false,
             ConfigureHistoryDb = dbContextOptions =>
             {
                 dbContextOptions.UseSqlite(connectionString);

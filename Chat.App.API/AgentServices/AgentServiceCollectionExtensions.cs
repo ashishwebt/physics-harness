@@ -14,6 +14,7 @@ public static class AgentServiceCollectionExtensions
         string apiKey,
         string model,
         string connectionStringMessages,
+        string connectionStringConversation,
         string name = DeepAgentFactory.DefaultAgentName,
         string? systemPrompt = null,
         string providerName = "google",
@@ -48,7 +49,7 @@ public static class AgentServiceCollectionExtensions
             },
             ConfigureStoreDb = dbContextOptions =>
             {
-                dbContextOptions.UseSqlite(connectionStringMessages);
+                dbContextOptions.UseSqlite(connectionStringConversation);
             },
             ApiKey = apiKey,
             Model = model,
@@ -56,9 +57,26 @@ public static class AgentServiceCollectionExtensions
             Endpoint = endpoint,
             AgentName = name,
             SystemPrompt = systemPrompt,
-            EnsureDatabaseCreatedOnStartup = true
         });
 
+        using var scope = services.BuildServiceProvider().CreateScope();
+        var historyFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatHistoryDbContext>>();
+        using (var db = historyFactory.CreateDbContext())
+        {
+            if (db.Database.GetMigrations().Any())
+                db.Database.Migrate();
+            else
+                db.Database.EnsureCreated();
+        }
+
+        var storeFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SqlStoreDbContext>>();
+        using (var db = storeFactory.CreateDbContext())
+        {
+            if (db.Database.GetMigrations().Any())
+                db.Database.Migrate();
+            else
+                db.Database.EnsureCreated();
+        }
         services.AddSingleton<IAgentService>(provider =>
         {
             var chatHistoryProvider = provider.GetRequiredService<DbChatHistoryProvider>();

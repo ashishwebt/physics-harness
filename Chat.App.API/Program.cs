@@ -10,7 +10,7 @@ public class Program
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
 
-        var connectionStringConversation = builder.Configuration.GetConnectionString("Default")
+        var connectionStringConversation = builder.Configuration.GetConnectionString("connectionStringConversation")
             ?? throw new InvalidOperationException(
                 "Database connection string is required.");
 
@@ -24,12 +24,16 @@ public class Program
         var agentEndpoint = builder.Configuration["Agent:Endpoint"];
         var connectionStringMessages = builder.Configuration.GetConnectionString("ConnectionStringMessages")
             ?? throw new InvalidOperationException(
-                "Database connection string is required.");
+                "Messages connection string is required.");
+        var ConnectionStringStore = builder.Configuration.GetConnectionString("ConnectionStringStore")
+            ?? throw new InvalidOperationException(
+                "Store connection string is required.");
 
         builder.Services.AddAgentServices(
             agentApiKey,
             agentModel,
             connectionStringMessages,
+            ConnectionStringStore,
             agentName,
             agentSystemPrompt,
             agentProvider,

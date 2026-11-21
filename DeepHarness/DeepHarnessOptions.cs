@@ -21,6 +21,4 @@ public sealed class DeepHarnessOptions
     public string Provider { get; init; } = "google";
 
     public string? Endpoint { get; init; }
-
-    public bool EnsureDatabaseCreatedOnStartup { get; init; } = true;
 }
