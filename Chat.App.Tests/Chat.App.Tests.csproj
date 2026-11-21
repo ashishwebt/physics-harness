@@ -21,6 +21,5 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Chat.App.API\Chat.App.API.csproj" />
-    <ProjectReference Include="..\DeepHarness\DeepHarness.csproj" />
   </ItemGroup>
 </Project>

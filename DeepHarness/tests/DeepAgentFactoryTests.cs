@@ -8,7 +8,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Chat.App.Tests;
+namespace DeepHarness.Tests;
 
 public class DeepAgentFactoryTests
 {

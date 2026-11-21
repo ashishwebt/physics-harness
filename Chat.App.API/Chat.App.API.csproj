@@ -26,6 +26,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DeepHarness\DeepHarness.csproj" />
+    <ProjectReference Include="..\DeepHarness\src\DeepHarness.csproj" />
   </ItemGroup>
 </Project>

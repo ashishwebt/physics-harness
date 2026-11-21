@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace Chat.App.Tests;
+namespace DeepHarness.Tests;
 
 public class FilesystemBackendTests
 {
