@@ -60,9 +60,9 @@ public sealed class ChatClientAgent
     /// <summary>
     /// Creates a new session for an existing conversation ID.
     /// </summary>
-    public ValueTask<AgentSession> CreateSessionAsync(string conversationId, CancellationToken cancellationToken = default)
+    public static AgentSession CreateSessionAsync(string conversationId)
     {
-        return new(new AgentSession { ConversationId = conversationId });
+        return new AgentSession { ConversationId = conversationId };
     }
 
     /// <summary>

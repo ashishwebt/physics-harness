@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using DeepHarness.Agents;
 using DeepHarness.Backend;
 using Microsoft.Extensions.AI;
 
@@ -52,7 +53,7 @@ internal sealed class BackendTools(IBackend backend, IChatClient chatClient)
         ChatMessage taskMessage = new(ChatRole.User, task);
         var subagent = DeepAgentFactory.CreateResearchAgent(backend, chatClient);
         Guid conversationId = Guid.NewGuid();
-        var response = await subagent.RunAsync([taskMessage], await subagent.CreateSessionAsync(conversationId.ToString()));
+        var response = await subagent.RunAsync([taskMessage], ChatClientAgent.CreateSessionAsync(conversationId.ToString()));
         return response.Text;
     }
 

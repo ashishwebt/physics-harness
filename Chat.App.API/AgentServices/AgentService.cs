@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Chat.App.API.Models;
 using DeepHarness;
+using DeepHarness.Agents;
 using DeepHarness.Backend;
 using DeepHarness.HistoryProvider;
 using Microsoft.EntityFrameworkCore;
@@ -74,7 +75,7 @@ public sealed class AgentService : IAgentService
             _agentName,
             _systemPrompt);
 
-        AgentSession session = await agent.CreateSessionAsync(conversationId, ct);
+        AgentSession session =  ChatClientAgent.CreateSessionAsync(conversationId);
         foreach (var providerKey in _chatHistoryProvider.StateKeys)
         {
             session.StateBag[providerKey] = conversationId;
