@@ -168,6 +168,25 @@ public sealed class ChatClientAgent
         await _historyProvider.InvokedAsync(invokedContext, cancellationToken).ConfigureAwait(false);
     }
 
+    private static List<AITool>? MergeTools(IList<AITool>? defaultTools, IList<AITool>? runTools)
+    {
+        var merged = new List<AITool>();
+
+        foreach (var tool in defaultTools ?? [])
+        {
+            if (!merged.Any(existing => ReferenceEquals(existing, tool)))
+                merged.Add(tool);
+        }
+
+        foreach (var tool in runTools ?? [])
+        {
+            if (!merged.Any(existing => ReferenceEquals(existing, tool)))
+                merged.Add(tool);
+        }
+
+        return merged.Count > 0 ? merged : null;
+    }
+
     private ChatOptions? MergeChatOptions(ChatOptions? runOptions)
     {
         var defaultOptions = _options.ChatOptions;
@@ -194,10 +213,8 @@ public sealed class ChatClientAgent
             ToolMode = runOptions.ToolMode ?? defaultOptions.ToolMode,
             AllowMultipleToolCalls = runOptions.AllowMultipleToolCalls ?? defaultOptions.AllowMultipleToolCalls,
             Seed = runOptions.Seed ?? defaultOptions.Seed,
+            Tools = MergeTools(defaultOptions.Tools, runOptions.Tools)
         };
-
-        // Merge tools: prefer run options if provided, else defaults.
-        merged.Tools = runOptions.Tools is { Count: > 0 } ? runOptions.Tools : defaultOptions.Tools;
 
         // Merge stop sequences.
         if (defaultOptions.StopSequences is { Count: > 0 })

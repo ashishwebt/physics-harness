@@ -42,7 +42,6 @@ public static class AgentServiceCollectionExtensions
 
         services.AddDeepHarness(new DeepHarnessOptions
         {
-            ConnectionStringMessages = connectionStringMessages,
             ConfigureHistoryDb = dbContextOptions =>
             {
                 dbContextOptions.UseSqlite(connectionStringMessages);

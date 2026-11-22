@@ -11,10 +11,6 @@ public static class DeepHarnessServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionStringMessages))
-        {
-            throw new ArgumentException("Connection string messages is required.", nameof(options));
-        }
 
         if (options.ConfigureHistoryDb is null)
         {

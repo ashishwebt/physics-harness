@@ -14,6 +14,11 @@ public sealed class AgentSession
     /// <summary>Unique identifier for the conversation this session belongs to.</summary>
     public string? ConversationId { get; set; }
 
+    /// <summary>
+    /// Shared state bag that providers can read from and write to.
+    /// Keys are provider-defined strings (see <see cref="ChatHistoryProvider.StateKeys"/>).
+    /// </summary>
+    public Dictionary<string, object?> StateBag { get; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>

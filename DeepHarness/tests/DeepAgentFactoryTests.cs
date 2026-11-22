@@ -62,7 +62,6 @@ public class DeepAgentFactoryTests
 
         services.AddDeepHarness(new DeepHarnessOptions
         {
-            ConnectionStringMessages = connectionString,
             AgentName = "DeepAgent",
             ConfigureHistoryDb = dbContextOptions =>
             {
