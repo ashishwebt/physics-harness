@@ -1,5 +1,6 @@
 using DeepHarness.Backend;
 using DeepHarness.HistoryProvider;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DeepHarness;
@@ -10,20 +11,10 @@ public static class DeepHarnessServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
-
-
-        if (options.ConfigureHistoryDb is null)
-        {
-            throw new InvalidOperationException("History DB configuration is required for DeepHarness registration.");
-        }
-
-        if (options.ConfigureStoreDb is null)
-        {
-            throw new InvalidOperationException("Store DB configuration is required for DeepHarness registration.");
-        }
-
-        services.AddPooledDbContextFactory<ChatHistoryDbContext>(options.ConfigureHistoryDb ?? throw new InvalidOperationException("History DB configuration is required for DeepHarness registration."));
-        services.AddPooledDbContextFactory<SqlStoreDbContext>(options.ConfigureStoreDb ?? throw new InvalidOperationException("Store DB configuration is required for DeepHarness registration."));
+        services.AddPooledDbContextFactory<ChatHistoryDbContext>(options.ConfigureHistoryDb ?? (db =>
+            db.UseInMemoryDatabase("DeepHarness.History")));
+        services.AddPooledDbContextFactory<SqlStoreDbContext>(options.ConfigureStoreDb ?? (db =>
+            db.UseInMemoryDatabase("DeepHarness.Store")));
 
         services.AddSingleton<DbChatHistoryProvider>();
 
