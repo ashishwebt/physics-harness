@@ -76,10 +76,6 @@ public sealed class AgentService : IAgentService
             _systemPrompt);
 
         AgentSession session =  ChatClientAgent.CreateSessionAsync(conversationId);
-        foreach (var providerKey in _chatHistoryProvider.StateKeys)
-        {
-            session.StateBag[providerKey] = conversationId;
-        }
 
         await foreach (var update in agent.RunStreamingAsync([message], session, cancellationToken: ct))
         {
