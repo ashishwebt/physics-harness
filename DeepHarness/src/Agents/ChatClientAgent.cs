@@ -9,6 +9,7 @@ namespace DeepHarness.Agents;
 /// A lightweight agent that wraps an <see cref="IChatClient"/> with always-on
 /// chat history provider support.  Built only on Microsoft.Extensions.AI — no
 /// dependency on Microsoft.Agents.AI.
+/// The model/tool loop is implemented as a state machine (see AgentLoopStates.cs).
 /// </summary>
 public sealed class ChatClientAgent
 {
@@ -59,9 +60,9 @@ public sealed class ChatClientAgent
     /// <summary>
     /// Creates a new session for an existing conversation ID.
     /// </summary>
-    public ValueTask<AgentSession> CreateSessionAsync(string conversationId, CancellationToken cancellationToken = default)
+    public static AgentSession CreateSessionAsync(string conversationId)
     {
-        return new(new AgentSession { ConversationId = conversationId });
+        return new AgentSession { ConversationId = conversationId };
     }
 
     /// <summary>
@@ -78,36 +79,17 @@ public sealed class ChatClientAgent
         ArgumentNullException.ThrowIfNull(session);
 
         var inputList = messages as IReadOnlyCollection<ChatMessage> ?? messages.ToList();
+        var ctx = await CreateLoopContextAsync(session, inputList, runOptions, streaming: false, cancellationToken).ConfigureAwait(false);
 
-        // Merge history with input messages.
-        var history = await LoadHistoryAsync(session, inputList, cancellationToken).ConfigureAwait(false);
-        var chatOptions = MergeChatOptions(runOptions);
+        _logger.LogDebug("Agent {Name} invoking chat client with {Count} messages", _name, ctx.History.Count);
 
-        _logger.LogDebug("Agent {Name} invoking chat client with {Count} messages", _name, history.Count);
-
-        ChatResponse response;
-        List<ChatMessage> persistedMessages;
-        try
+        // Non-streaming runs produce no updates; drive the loop to completion.
+        await foreach (var _ in AgentLoopState.RunAsync(ctx, cancellationToken).ConfigureAwait(false))
         {
-            response = await _chatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
-            (response, persistedMessages) = await ExecuteToolCallsAsync(history, response, chatOptions, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Chat client invocation failed for agent {Name}", _name);
-            throw;
         }
 
-        // Set author name on response messages.
-        foreach (var msg in response.Messages)
-        {
-            msg.AuthorName ??= _name;
-        }
-
-        // Persist the full message chain, including any assistant/tool round-trips.
-        await StoreHistoryAsync(session, inputList, persistedMessages.Concat(response.Messages), cancellationToken).ConfigureAwait(false);
-
-        return response;
+        // History was already persisted incrementally by the loop.
+        return ctx.Response!;
     }
 
     /// <summary>
@@ -124,112 +106,41 @@ public sealed class ChatClientAgent
         ArgumentNullException.ThrowIfNull(session);
 
         var inputList = messages as IReadOnlyCollection<ChatMessage> ?? messages.ToList();
+        var ctx = await CreateLoopContextAsync(session, inputList, runOptions, streaming: true, cancellationToken).ConfigureAwait(false);
 
-        // Merge history with input messages.
-        var history = await LoadHistoryAsync(session, inputList, cancellationToken).ConfigureAwait(false);
-        var chatOptions = MergeChatOptions(runOptions);
+        _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", _name, ctx.History.Count);
 
-        _logger.LogDebug("Agent {Name} invoking streaming chat client with {Count} messages", _name, history.Count);
-
-        var persistedMessages = new List<ChatMessage>();
-        List<ChatResponseUpdate> finalRoundUpdates = [];
-
-        const int maxToolRounds = 10;
-        for (var round = 0; round < maxToolRounds; round++)
+        await foreach (var update in AgentLoopState.RunAsync(ctx, cancellationToken).ConfigureAwait(false))
         {
-            IAsyncEnumerator<ChatResponseUpdate> enumerator;
-            try
-            {
-                enumerator = _chatClient.GetStreamingResponseAsync(history, chatOptions, cancellationToken).GetAsyncEnumerator(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Streaming chat client invocation failed for agent {Name}", _name);
-                throw;
-            }
-
-            var roundUpdates = new List<ChatResponseUpdate>();
-            try
-            {
-                while (true)
-                {
-                    bool hasMore;
-                    try
-                    {
-                        hasMore = await enumerator.MoveNextAsync().ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Streaming failed for agent {Name}", _name);
-                        throw;
-                    }
-
-                    if (!hasMore)
-                        break;
-
-                    var update = enumerator.Current;
-                    if (update is null)
-                        continue;
-
-                    roundUpdates.Add(update);
-                    yield return new AgentResponseUpdate(update, _name);
-                }
-            }
-            finally
-            {
-                await enumerator.DisposeAsync().ConfigureAwait(false);
-            }
-
-            finalRoundUpdates = roundUpdates;
-
-            var toolCalls = roundUpdates
-                .SelectMany(u => u.Contents)
-                .OfType<FunctionCallContent>()
-                .ToList();
-
-            if (toolCalls.Count == 0)
-                break;
-
-            var hadToolExecution = false;
-            foreach (var call in toolCalls)
-            {
-                var tool = chatOptions?.Tools?
-                    .OfType<AIFunction>()
-                    .FirstOrDefault(t => string.Equals(t.Name, call.Name, StringComparison.Ordinal));
-
-                if (tool is null)
-                {
-                    _logger.LogWarning("Tool '{ToolName}' was requested but is not available to the agent.", call.Name);
-                    continue;
-                }
-
-                var result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken).ConfigureAwait(false);
-
-                var assistantToolMessage = new ChatMessage(ChatRole.Assistant, [call]);
-                var toolResultMessage = new ChatMessage(ChatRole.Tool,
-                [
-                    new FunctionResultContent(call.CallId, result ?? string.Empty)
-                ]);
-
-                history.Add(assistantToolMessage);
-                history.Add(toolResultMessage);
-                persistedMessages.Add(assistantToolMessage);
-                persistedMessages.Add(toolResultMessage);
-                hadToolExecution = true;
-            }
-
-            if (!hadToolExecution)
-                break;
+            yield return new AgentResponseUpdate(update, _name);
         }
-
-        // Build the response messages from the final round and persist the full chain.
-        var responseMessages = finalRoundUpdates.ToChatResponse().Messages;
-        await StoreHistoryAsync(session, inputList, persistedMessages.Concat(responseMessages), cancellationToken).ConfigureAwait(false);
     }
 
     // ──────────────────────────────────────────────────────
     //  Private helpers
     // ──────────────────────────────────────────────────────
+
+    private async Task<AgentLoopContext> CreateLoopContextAsync(
+        AgentSession session,
+        IReadOnlyCollection<ChatMessage> inputMessages,
+        ChatOptions? runOptions,
+        bool streaming,
+        CancellationToken cancellationToken)
+    {
+        var history = await LoadHistoryAsync(session, inputMessages, cancellationToken).ConfigureAwait(false);
+
+        return new AgentLoopContext
+        {
+            ChatClient = _chatClient,
+            Logger = _logger,
+            AgentName = _name,
+            Streaming = streaming,
+            History = history,
+            InputMessages = inputMessages,
+            Store = (request, response, ct) => StoreHistoryAsync(session, request, response, ct),
+            ChatOptions = MergeChatOptions(runOptions),
+        };
+    }
 
     private async Task<List<ChatMessage>> LoadHistoryAsync(
         AgentSession session,
@@ -257,65 +168,23 @@ public sealed class ChatClientAgent
         await _historyProvider.InvokedAsync(invokedContext, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<(ChatResponse Response, List<ChatMessage> PersistedMessages)> ExecuteToolCallsAsync(
-        IList<ChatMessage> history,
-        ChatResponse response,
-        ChatOptions? chatOptions,
-        CancellationToken cancellationToken)
+    private static List<AITool>? MergeTools(IList<AITool>? defaultTools, IList<AITool>? runTools)
     {
-        const int maxToolRounds = 10;
-        var persistedMessages = new List<ChatMessage>();
+        var merged = new List<AITool>();
 
-        for (var round = 0; round < maxToolRounds; round++)
+        foreach (var tool in defaultTools ?? [])
         {
-            var toolCalls = response.Messages
-                .SelectMany(m => m.Contents)
-                .OfType<FunctionCallContent>()
-                .ToList();
-
-            if (toolCalls.Count == 0)
-            {
-                return (response, persistedMessages);
-            }
-
-            var hadToolExecution = false;
-
-            foreach (var call in toolCalls)
-            {
-                var tool = chatOptions?.Tools?
-                    .OfType<AIFunction>()
-                    .FirstOrDefault(t => string.Equals(t.Name, call.Name, StringComparison.Ordinal));
-
-                if (tool is null)
-                {
-                    _logger.LogWarning("Tool '{ToolName}' was requested but is not available to the agent.", call.Name);
-                    continue;
-                }
-
-                var result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken).ConfigureAwait(false);
-
-                var assistantToolMessage = new ChatMessage(ChatRole.Assistant, [call]);
-                var toolResultMessage = new ChatMessage(ChatRole.Tool,
-                [
-                    new FunctionResultContent(call.CallId, result ?? string.Empty)
-                ]);
-
-                history.Add(assistantToolMessage);
-                history.Add(toolResultMessage);
-                persistedMessages.Add(assistantToolMessage);
-                persistedMessages.Add(toolResultMessage);
-                hadToolExecution = true;
-            }
-
-            if (!hadToolExecution)
-            {
-                return (response, persistedMessages);
-            }
-
-            response = await _chatClient.GetResponseAsync(history, chatOptions, cancellationToken).ConfigureAwait(false);
+            if (!merged.Any(existing => ReferenceEquals(existing, tool)))
+                merged.Add(tool);
         }
 
-        throw new InvalidOperationException("The tool-calling loop exceeded the maximum allowed rounds.");
+        foreach (var tool in runTools ?? [])
+        {
+            if (!merged.Any(existing => ReferenceEquals(existing, tool)))
+                merged.Add(tool);
+        }
+
+        return merged.Count > 0 ? merged : null;
     }
 
     private ChatOptions? MergeChatOptions(ChatOptions? runOptions)
@@ -344,10 +213,8 @@ public sealed class ChatClientAgent
             ToolMode = runOptions.ToolMode ?? defaultOptions.ToolMode,
             AllowMultipleToolCalls = runOptions.AllowMultipleToolCalls ?? defaultOptions.AllowMultipleToolCalls,
             Seed = runOptions.Seed ?? defaultOptions.Seed,
+            Tools = MergeTools(defaultOptions.Tools, runOptions.Tools)
         };
-
-        // Merge tools: prefer run options if provided, else defaults.
-        merged.Tools = runOptions.Tools is { Count: > 0 } ? runOptions.Tools : defaultOptions.Tools;
 
         // Merge stop sequences.
         if (defaultOptions.StopSequences is { Count: > 0 })
@@ -382,4 +249,3 @@ public sealed class ChatClientAgent
         return merged;
     }
 }
-

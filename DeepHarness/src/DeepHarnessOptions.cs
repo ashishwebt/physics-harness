@@ -4,7 +4,6 @@ namespace DeepHarness;
 
 public sealed class DeepHarnessOptions
 {
-    public string ConnectionStringMessages { get; init; } = string.Empty;
 
     public Action<DbContextOptionsBuilder>? ConfigureHistoryDb { get; init; }
 

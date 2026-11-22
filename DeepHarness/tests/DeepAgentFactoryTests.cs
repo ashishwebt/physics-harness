@@ -62,7 +62,6 @@ public class DeepAgentFactoryTests
 
         services.AddDeepHarness(new DeepHarnessOptions
         {
-            ConnectionStringMessages = connectionString,
             AgentName = "DeepAgent",
             ConfigureHistoryDb = dbContextOptions =>
             {
@@ -101,7 +100,7 @@ public class DeepAgentFactoryTests
             });
 
         Guid conversationId = Guid.NewGuid();
-        AgentSession session = await agent.CreateSessionAsync(conversationId.ToString());
+        AgentSession session = ChatClientAgent.CreateSessionAsync(conversationId.ToString());
         var response = await agent.RunAsync([new ChatMessage(ChatRole.User, "hello")], session);
 
         Assert.True(fakeClient.ToolWasCalled);
@@ -127,7 +126,7 @@ public class DeepAgentFactoryTests
                 }
             });
         Guid conversationId = Guid.NewGuid();
-        AgentSession session = await agent.CreateSessionAsync(conversationId.ToString());
+        AgentSession session = ChatClientAgent.CreateSessionAsync(conversationId.ToString());
 
         var response = await agent.RunAsync([new ChatMessage(ChatRole.User, "hello")], session);
 
@@ -156,7 +155,7 @@ public class DeepAgentFactoryTests
 
         var updates = new List<string>();
         Guid conversationId = Guid.NewGuid();
-        AgentSession session = await agent.CreateSessionAsync(conversationId.ToString());
+        AgentSession session = ChatClientAgent.CreateSessionAsync(conversationId.ToString());
 
         await foreach (var update in agent.RunStreamingAsync([new ChatMessage(ChatRole.User, "hello")], session))
         {
@@ -189,7 +188,7 @@ public class DeepAgentFactoryTests
                 }
             });
 
-        var session = await agent.CreateSessionAsync("conversation-with-tools");
+        var session = ChatClientAgent.CreateSessionAsync("conversation-with-tools");
 
         var first = await agent.RunAsync([new ChatMessage(ChatRole.User, "first turn")], session);
         Assert.Contains("Final response after first turn", first.Text, StringComparison.Ordinal);
@@ -219,7 +218,7 @@ public class DeepAgentFactoryTests
                 }
             });
 
-        var session = await agent.CreateSessionAsync("structured-tool-result-test");
+        var session = ChatClientAgent.CreateSessionAsync("structured-tool-result-test");
         await agent.RunAsync([new ChatMessage(ChatRole.User, "hello")], session);
 
         var context = new InvokingContext(agent, session, []);
@@ -248,7 +247,7 @@ public class DeepAgentFactoryTests
                 }
             });
 
-        var session = await agent.CreateSessionAsync("orphan-test");
+        var session = ChatClientAgent.CreateSessionAsync("orphan-test");
         await agent.RunAsync([new ChatMessage(ChatRole.User, "hello")], session);
 
         var context = new InvokingContext(agent, session, []);
@@ -277,7 +276,7 @@ public class DeepAgentFactoryTests
                 }
             });
 
-        var session = await agent.CreateSessionAsync("orphan-streaming-test");
+        var session = ChatClientAgent.CreateSessionAsync("orphan-streaming-test");
 
         await foreach (var _ in agent.RunStreamingAsync([new ChatMessage(ChatRole.User, "hello")], session))
         {
